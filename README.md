@@ -115,6 +115,7 @@ The server exposes the following tools:
   - Returns: List of secret objects for the function.
 
 - `create_secret`: Creates a new secret for the specified function (workspace).
+  - **Note:** Secrets cannot be overwritten. If a secret with the same key already exists, you must delete it first before creating a new one with the same key.
   - Arguments:
     - `workspace_id` (str): The function (workspace) ID.
     - `key` (str): The secret key.
