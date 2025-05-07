@@ -25,6 +25,18 @@ def update_function_code(function_id: str, code: str) -> dict:
         }
         ```
 
+    Advanced Example (cross-function invocation):
+        ```
+        import fn from "@microfn/fn";
+        export default async function main(input) {
+          // Replace with the actual function ID you want to call
+          const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
+          // Call another function and add 10 to its result
+          const result = await fn.executeFunction(targetFunctionId, input);
+          return result + 10;
+        }
+        ```
+
     Args:
         function_id (str): Function ID.
         code (str): The new code to set. Must include a main(input: any) entrypoint.

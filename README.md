@@ -91,6 +91,33 @@ The server exposes the following tools:
     - `code` (str): Initial code for the function.
   - Returns: The created workspace object.
 
+  **Example:**
+  ```js
+  // Create a simple function that returns the sum of two numbers
+  const code = `
+  export default async function main(input) {
+    return input.a + input.b;
+  }
+  `;
+  const result = await mcp.create_function({ name: "Adder", code });
+  ```
+
+  **Advanced Example (calling another function):**
+  ```js
+  // Suppose you want to create a function that calls another function by ID
+  import fn from "@microfn/fn";
+  const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
+  const code = `
+  import fn from "@microfn/fn";
+  export default async function main(input) {
+    // Call another function by its ID
+    const result = await fn.executeFunction("${targetFunctionId}", input);
+    return result;
+  }
+  `;
+  const result = await mcp.create_function({ name: "ProxyCaller", code });
+  ```
+
 - `get_function_code`: Gets the code for a function (workspace).
 
   - Arguments:
@@ -103,6 +130,34 @@ The server exposes the following tools:
     - `function_id` (str): Function ID.
     - `code` (str): The new code to set.
   - Returns: The response from the update endpoint.
+
+  **Example:**
+  ```js
+  // Update a function to log its input and return it
+  const code = `
+  export default async function main(input) {
+    console.log("Received input:", input);
+    return input;
+  }
+  `;
+  await mcp.update_function_code({ function_id: "abc123", code });
+  ```
+
+  **Advanced Example (cross-function invocation):**
+  ```js
+  // Update a function to call another function and process its result
+  import fn from "@microfn/fn";
+  const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
+  const code = `
+  import fn from "@microfn/fn";
+  export default async function main(input) {
+    // Call another function and add 10 to its result
+    const result = await fn.executeFunction("${targetFunctionId}", input);
+    return result + 10;
+  }
+  `;
+  await mcp.update_function_code({ function_id: "abc123", code });
+  ```
 
 - `check_deployment`: Gets the latest deployment for a function (workspace).
   - Arguments:

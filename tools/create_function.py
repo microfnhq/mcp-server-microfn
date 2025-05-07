@@ -25,6 +25,18 @@ def create_function(name: str, code: str) -> dict:
         }
         ```
 
+    Advanced Example (calling another function by ID):
+        ```
+        import fn from "@microfn/fn";
+        export default async function main(input) {
+          // Replace with the actual function ID you want to call
+          const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
+          // Call another function by its ID
+          const result = await fn.executeFunction(targetFunctionId, input);
+          return result;
+        }
+        ```
+
     Args:
         name (str): Name for the function/workspace.
         code (str): Initial code for the function. Must include a main(input: any) entrypoint.
