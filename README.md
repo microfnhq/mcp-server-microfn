@@ -41,6 +41,34 @@ Or, using FastMCP CLI (if installed globally):
 fastmcp run my_server.py:mcp
 ```
 
+Or, to run locally with uvx and FastMCP dev mode:
+
+```sh
+uvx fastmcp dev server.py
+```
+
+---
+
+## MCP Integration Example
+
+To use this server as an MCP tool provider, add the following to your MCP settings:
+
+```json
+  "microfn-mcp": {
+    "command": "uvx",
+    "args": [
+      "--from",
+      "git+https://github.com/microfnhq/mcp-server-microfn",
+      "server"
+    ],
+    "env": {
+      "MICROFN_API_TOKEN": "<token>"
+    }
+  }
+```
+
+Replace the token values with your own as needed.
+
 ---
 
 ## Usage
