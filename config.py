@@ -3,13 +3,23 @@ import logging
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from fastmcp import FastMCP
 
+
 # --- Logging Setup ---
-LOG_FILE = "server.log"
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+import sys
+LOG_TO_STDOUT = os.environ.get("LOG_TO_STDOUT", "1") == "1"
+if LOG_TO_STDOUT:
+    logging.basicConfig(
+        stream=sys.stdout,
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+else:
+    LOG_FILE = "server.log"
+    logging.basicConfig(
+        filename=LOG_FILE,
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
 
 
 def log_event(message):
@@ -42,6 +52,8 @@ except Exception as e:
 # Initialize FastMCP
 mcp_init_kwargs = {}
 if app_config.microfn_api_token:
-    mcp_init_kwargs["microfn_api_token_if_fastmcp_uses_it"] = app_config.microfn_api_token
+    mcp_init_kwargs["microfn_api_token_if_fastmcp_uses_it"] = (
+        app_config.microfn_api_token
+    )
 
 mcp = FastMCP("MicroFn MCP Server", **mcp_init_kwargs)
