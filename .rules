@@ -1,0 +1,10 @@
+# Project Rules for MicroFn MCP Server
+
+1. **README Synchronization:**  
+   Whenever any MCP tools are added, removed, or modified in the server code, the README.md must be updated immediately to accurately reflect the current set of available tools, their names, descriptions, and usage. The documentation should never be out of sync with the actual server functionality.
+
+2. **Rule Additions:**  
+   Any new workflow, process, or rule discussed and agreed upon during development must be written into this `.rules` file for future reference and team clarity.
+
+3. **API Auth & Client Reuse:**  
+   The MCP server must read the MicroFn API token from the `MICROFN_API_TOKEN` environment variable. All API logic (including authentication and HTTP requests) should be implemented in a reusable API client class or module, not duplicated across tools.
