@@ -30,7 +30,7 @@ def get_secrets(workspace_id: str) -> list:
     return secrets
 
 
-@mc.tool()
+@mcp.tool()
 def create_secret(workspace_id: str, key: str, value: str) -> list:
     """
     Creates a new secret for the specified function (workspace).
