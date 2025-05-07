@@ -75,3 +75,60 @@ class MicroFnAPIClient:
         except Exception as e:
             log_event(f"Response is not JSON: {e}. Returning raw text.")
             return resp.text
+
+    # --- Secret Management Methods ---
+
+    def get_secrets(self, workspace_id: str) -> list:
+        """
+        Get all secrets for a workspace.
+
+        Args:
+            workspace_id (str): The workspace ID.
+
+        Returns:
+            list: List of secret objects.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/secrets"
+        log_event(f"GET {url}")
+        resp = httpx.get(url, headers=self._headers(), timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("secrets", [])
+
+    def create_secret(self, workspace_id: str, key: str, value: str) -> list:
+        """
+        Create a new secret for a workspace.
+
+        Args:
+            workspace_id (str): The workspace ID.
+            key (str): The secret key.
+            value (str): The secret value.
+
+        Returns:
+            list: List of secret objects after creation.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/secrets"
+        body = {"key": key, "value": value}
+        log_event(f"POST {url} with body: {body}")
+        resp = httpx.post(url, headers=self._headers(), json=body, timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("secrets", [])
+
+    def delete_secret(self, workspace_id: str, secret_id: str) -> dict:
+        """
+        Delete a secret from a workspace.
+
+        Args:
+            workspace_id (str): The workspace ID.
+            secret_id (str): The secret ID.
+
+        Returns:
+            dict: Empty dict on success.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/secrets/{secret_id}"
+        log_event(f"DELETE {url}")
+        resp = httpx.delete(url, headers=self._headers(), timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json() if resp.text else {}

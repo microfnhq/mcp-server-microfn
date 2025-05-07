@@ -6,6 +6,7 @@ import tools.create_function
 import tools.get_function_code
 import tools.update_function_code
 import tools.check_deployment
+import tools.secret
 
 # --- MicroFn API Client (Reusable) ---
 
@@ -16,6 +17,7 @@ import tools.check_deployment
 def main():
     log_event("MCP server starting up")
     mcp.run()
+
 
 if __name__ == "__main__":
     main()

@@ -109,6 +109,24 @@ The server exposes the following tools:
     - `function_id` (str): Function ID.
   - Returns: The latest deployment object.
 
+- `get_secrets`: Retrieves all secrets for the specified function (workspace).
+  - Arguments:
+    - `workspace_id` (str): The function (workspace) ID.
+  - Returns: List of secret objects for the function.
+
+- `create_secret`: Creates a new secret for the specified function (workspace).
+  - Arguments:
+    - `workspace_id` (str): The function (workspace) ID.
+    - `key` (str): The secret key.
+    - `value` (str): The secret value.
+  - Returns: List of secret objects after creation.
+
+- `delete_secret`: Deletes a secret from the specified function (workspace).
+  - Arguments:
+    - `workspace_id` (str): The function (workspace) ID.
+    - `secret_id` (str): The secret ID.
+  - Returns: Empty dict on success.
+
 You can test these with a FastMCP client or by sending a tool call via stdio.
 
 ---

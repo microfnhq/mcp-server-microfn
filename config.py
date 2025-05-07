@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 
 # --- Logging Setup ---
 import sys
+
 LOG_TO_STDOUT = os.environ.get("LOG_TO_STDOUT", "1") == "1"
 if LOG_TO_STDOUT:
     logging.basicConfig(

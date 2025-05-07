@@ -52,3 +52,6 @@ After each multi-step action (any task involving multiple file edits, complex lo
 - The task was simple and involved no feedback.
 
 **Note:** If `.rules` does not exist, create it before proceeding.
+
+8. **Tool File Organization:**  
+   All MCP tool implementations must be placed in the `tools/` directory. Each tool or closely related group of tools should have its own module (Python file) within this folder. No tool definitions should appear outside the `tools/` directory.
