@@ -91,8 +91,62 @@ class MicroFnAPIClient:
         resp.raise_for_status()
         return resp.json().get("workspaces", [])
 
+    def execute_function(self, wsid: str, input_data: dict):
+        """
+        Executes the main function in the specified workspace with the provided input.
+
+        Args:
+            wsid (str): Workspace ID.
+            input_data (dict): Input to pass to the function.
+
+        Returns:
+            dict: The output from the function execution.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/workspaces/{wsid}/run"
+        log_event(f"POST {url} with input: {input_data}")
+        resp = httpx.post(url, headers=self._headers(), json={"input": input_data}, timeout=30)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json()
+
 
 # --- MCP Tools ---
+
+
+@mcp.tool()
+def execute_function(wsid: str, input_data: dict) -> dict:
+    """
+    Executes the main function in the specified workspace with the provided input.
+
+    Args:
+        wsid (str): Workspace ID.
+        input_data (dict): Input to pass to the function.
+
+    Returns:
+        dict: The output from the function execution.
+
+    Raises:
+        RuntimeError: If the API token is not configured.
+        httpx.HTTPStatusError: If the request fails.
+    """
+    log_event(f"execute_function tool called for workspace {wsid} with input: {input_data}")
+    token = app_config.microfn_api_token
+
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+
+    client = MicroFnAPIClient(token=token)
+    result = client.execute_function(wsid, input_data)
+    log_event(f"execute_function result: {result}")
+    return result
 
 
 @mcp.tool()
@@ -110,14 +164,14 @@ def ping() -> str:
 
 
 @mcp.tool()
-def list_workspaces() -> list:
+def list_functions() -> list:
     """
-    Lists all workspaces for the authenticated user using the MicroFn API.
+    Lists all functions for the authenticated user using the MicroFn API.
 
     Returns:
-        list: List of workspace objects.
+        list: List of function objects.
     """
-    log_event("list_workspaces tool called")
+    log_event("list_functions tool called")
     # Use the token directly from our Pydantic app_config
     token = app_config.microfn_api_token
 
@@ -131,7 +185,7 @@ def list_workspaces() -> list:
 
     client = MicroFnAPIClient(token=token)
     workspaces = client.get_workspaces()
-    log_event(f"list_workspaces result: {workspaces}")
+    log_event(f"list_functions result: {workspaces}")
     return workspaces
 
 

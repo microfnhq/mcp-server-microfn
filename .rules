@@ -8,3 +8,33 @@
 
 3. **API Auth & Client Reuse:**  
    The MCP server must read the MicroFn API token from the `MICROFN_API_TOKEN` environment variable. All API logic (including authentication and HTTP requests) should be implemented in a reusable API client class or module, not duplicated across tools.
+
+---
+
+**Objective:** Offer opportunities to continuously improve this `.rules` file based on user interactions and feedback.
+
+**Trigger:** After completing all Copilot tool calls that modify code or files (such as `editCode`, `scaffoldCode`, `fixProblems`, `generateUnitTests`, etc.) **and** the task either
+- included user feedback at any point in the conversation, or
+- required multiple non–trivial steps (multiple file edits, complex logic generation, etc.).
+
+**Process:**
+
+1. **Offer Reflection**  
+   Ask the user:  
+   “Before I complete the task, would you like me to reflect on our interaction and suggest potential improvements to the active `.rules` file?”
+
+2. **Await User Confirmation**  
+   If the user declines or doesn’t respond affirmatively, immediately proceed with the pending Copilot action.
+
+3. **If the User Confirms:**  
+   a. **Review Interaction** – Synthesize all feedback provided by the user throughout the conversation. Determine how that feedback relates to the `.rules` file and where improved instructions could have produced better results or matched user preferences more closely.  
+   b. **Identify Active Rules** – List the specific rule files that were in effect during the task (e.g. `.rules`).  
+   c. **Formulate & Propose Improvements** – Generate concrete, actionable suggestions for improving those files. Prioritize changes that directly address user feedback. When practical, present `replace_in_file` diff blocks; otherwise describe the edits clearly.  
+   d. **Await User Action on Suggestions** – Ask if the user agrees with the proposed improvements and whether they’d like them applied _now_ using the relevant Copilot tool (`editCode`, `scaffoldCode`, etc.). If approved, apply the changes and then continue with the original Copilot action.
+
+**Constraint:** Do _not_ offer reflection if:
+
+- No `.rules` file was active, or
+- The task was simple and involved no feedback.
+
+**Note:** If `.rules` does not exist, create it before proceeding.

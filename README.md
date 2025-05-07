@@ -7,7 +7,8 @@ This is a FastMCP server for the MicroFn project. It exposes MCP tools for integ
 ## Features
 
 - **Ping tool**: Test the server with a simple ping/pong.
-- **list_workspaces tool**: Lists all workspaces for the authenticated user via the MicroFn API.
+- **list_functions tool**: Lists all functions for the authenticated user via the MicroFn API.
+- **execute_function tool**: Executes the main function in a specified workspace with provided input.
 
 ---
 
@@ -47,7 +48,12 @@ fastmcp run my_server.py:mcp
 The server exposes the following tools:
 
 - `ping`: Returns `"pong"`.
-- `list_workspaces`: Returns a list of all workspaces for the authenticated user (requires `MICROFN_API_TOKEN` to be set).
+- `list_functions`: Returns a list of all functions for the authenticated user (requires `MICROFN_API_TOKEN` to be set).
+- `execute_function`: Executes the main function in the specified workspace.  
+  - Arguments:
+    - `wsid` (str): Workspace ID.
+    - `input_data` (dict): Input to pass to the function.
+  - Returns: The output from the function execution.
 
 You can test these with a FastMCP client or by sending a tool call via stdio.
 
