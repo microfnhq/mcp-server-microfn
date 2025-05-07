@@ -85,32 +85,32 @@ class MicroFnAPIClient:
         resp.raise_for_status()
         return resp.json().get("workspace", {})
 
-    def get_workspace_code(self, workspace_id: str) -> str:
+    def get_workspace_code(self, function_id: str) -> str:
         """
-        Gets the code for a workspace.
+        Gets the code for a function.
 
         Args:
-            workspace_id (str): Workspace ID.
+            function_id (str): Function ID.
 
         Returns:
-            str: The code for the workspace.
+            str: The code for the function.
 
         Raises:
             httpx.HTTPStatusError: If the request fails.
         """
-        url = f"{self.BASE_URL}/workspaces/{workspace_id}/code"
+        url = f"{self.BASE_URL}/workspaces/{function_id}/code"
         log_event(f"GET {url}")
         resp = httpx.get(url, headers=self._headers(), timeout=10)
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
         resp.raise_for_status()
         return resp.json().get("code", "")
 
-    def update_workspace_code(self, workspace_id: str, code: str) -> dict:
+    def update_workspace_code(self, function_id: str, code: str) -> dict:
         """
-        Updates the code for a workspace.
+        Updates the code for a function.
 
         Args:
-            workspace_id (str): Workspace ID.
+            function_id (str): Function ID.
             code (str): The new code to set.
 
         Returns:
@@ -119,7 +119,7 @@ class MicroFnAPIClient:
         Raises:
             httpx.HTTPStatusError: If the request fails.
         """
-        url = f"{self.BASE_URL}/workspaces/{workspace_id}/code"
+        url = f"{self.BASE_URL}/workspaces/{function_id}/code"
         body = {"code": code}
         log_event(f"POST {url} with body: {body}")
         resp = httpx.post(url, headers=self._headers(), json=body, timeout=20)
@@ -127,12 +127,12 @@ class MicroFnAPIClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_latest_deployment(self, workspace_id: str) -> dict:
+    def get_latest_deployment(self, function_id: str) -> dict:
         """
-        Gets the latest deployment for a workspace.
+        Gets the latest deployment for a function.
 
         Args:
-            workspace_id (str): Workspace ID.
+            function_id (str): Function ID.
 
         Returns:
             dict: The latest deployment object.
@@ -140,7 +140,7 @@ class MicroFnAPIClient:
         Raises:
             httpx.HTTPStatusError: If the request fails.
         """
-        url = f"{self.BASE_URL}/workspaces/{workspace_id}/deployments/latest"
+        url = f"{self.BASE_URL}/workspaces/{function_id}/deployments/latest"
         log_event(f"GET {url}")
         resp = httpx.get(url, headers=self._headers(), timeout=10)
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
@@ -203,7 +203,7 @@ class MicroFnAPIClient:
 
 
 @mcp.tool()
-def execute_function(workspace_id: str, input_data: dict) -> dict:
+def execute_function(function_id: str, input_data: dict) -> dict:
     """
     Executes the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
 
@@ -219,7 +219,7 @@ def execute_function(workspace_id: str, input_data: dict) -> dict:
         httpx.HTTPStatusError: If the request fails.
     """
     log_event(
-        f"execute_function tool called for workspace {workspace_id} with input: {input_data}"
+        f"execute_function tool called for function {function_id} with input: {input_data}"
     )
     token = app_config.microfn_api_token
 
@@ -232,12 +232,11 @@ def execute_function(workspace_id: str, input_data: dict) -> dict:
         )
 
     client = MicroFnAPIClient(token=token)
-    result = client.execute_function(workspace_id, input_data)
+    result = client.execute_function(function_id, input_data)
     log_event(f"execute_function result: {result}")
     return result
 
 
-@mcp.tool()
 @mcp.tool()
 def ping() -> str:
     """
@@ -314,17 +313,17 @@ def create_function(name: str, code: str) -> dict:
 
 
 @mcp.tool()
-def get_function_code(workspace_id: str) -> str:
+def get_function_code(function_id: str) -> str:
     """
-    Gets the code for a function (workspace).
+    Gets the code for a function.
 
     Args:
-        workspace_id (str): Workspace ID.
+        function_id (str): Function ID.
 
     Returns:
-        str: The code for the workspace.
+        str: The code for the function.
     """
-    log_event(f"get_function_code tool called for workspace {workspace_id}")
+    log_event(f"get_function_code tool called for function {function_id}")
     token = app_config.microfn_api_token
     if not token:
         log_event(
@@ -334,24 +333,24 @@ def get_function_code(workspace_id: str) -> str:
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
     client = MicroFnAPIClient(token=token)
-    code = client.get_workspace_code(workspace_id)
+    code = client.get_workspace_code(function_id)
     log_event(f"get_function_code result: {code}")
     return code
 
 
 @mcp.tool()
-def update_function_code(workspace_id: str, code: str) -> dict:
+def update_function_code(function_id: str, code: str) -> dict:
     """
-    Updates the code for a function (workspace).
+    Updates the code for a function.
 
     Args:
-        workspace_id (str): Workspace ID.
+        function_id (str): Function ID.
         code (str): The new code to set.
 
     Returns:
         dict: The response from the update endpoint.
     """
-    log_event(f"update_function_code tool called for workspace {workspace_id}")
+    log_event(f"update_function_code tool called for function {function_id}")
     token = app_config.microfn_api_token
     if not token:
         log_event(
@@ -361,23 +360,23 @@ def update_function_code(workspace_id: str, code: str) -> dict:
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
     client = MicroFnAPIClient(token=token)
-    result = client.update_workspace_code(workspace_id, code)
+    result = client.update_workspace_code(function_id, code)
     log_event(f"update_function_code result: {result}")
     return result
 
 
 @mcp.tool()
-def check_deployment(workspace_id: str) -> dict:
+def check_deployment(function_id: str) -> dict:
     """
-    Gets the latest deployment for a function (workspace).
+    Gets the latest deployment for a function.
 
     Args:
-        workspace_id (str): Workspace ID.
+        function_id (str): Function ID.
 
     Returns:
         dict: The latest deployment object.
     """
-    log_event(f"check_deployment tool called for workspace {workspace_id}")
+    log_event(f"check_deployment tool called for function {function_id}")
     token = app_config.microfn_api_token
     if not token:
         log_event(
@@ -387,6 +386,6 @@ def check_deployment(workspace_id: str) -> dict:
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
     client = MicroFnAPIClient(token=token)
-    result = client.get_latest_deployment(workspace_id)
+    result = client.get_latest_deployment(function_id)
     log_event(f"check_deployment result: {result}")
     return result
