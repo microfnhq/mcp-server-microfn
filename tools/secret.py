@@ -34,10 +34,16 @@ def get_secrets(workspace_id: str) -> list:
 def create_secret(workspace_id: str, key: str, value: str) -> list:
     """
     Creates a new secret for the specified function (workspace).
-
+    
     Note:
         Secrets cannot be overwritten. If a secret with the same key already exists,
         you must delete it first before creating a new one with the same key.
+
+    Example (retrieving secrets in your function code):
+        ```js
+        import secret from "@microfn/secret";
+        const url = await secret.getRequired("DISCORD_WEBHOOK_URL");
+        ```
 
     Args:
         workspace_id (str): The function (workspace) ID.

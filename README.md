@@ -121,6 +121,11 @@ The server exposes the following tools:
     - `key` (str): The secret key.
     - `value` (str): The secret value.
   - Returns: List of secret objects after creation.
+  - **How to retrieve secrets in your function code:**
+    ```js
+    import secret from "@microfn/secret";
+    const url = await secret.getRequired("DISCORD_WEBHOOK_URL");
+    ```
 
 - `delete_secret`: Deletes a secret from the specified function (workspace).
   - Arguments:
