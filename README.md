@@ -50,10 +50,36 @@ The server exposes the following tools:
 - `ping`: Returns `"pong"`.
 - `list_functions`: Returns a list of all functions for the authenticated user (requires `MICROFN_API_TOKEN` to be set).
 - `execute_function`: Executes the main function in the specified workspace using the `/run/{workspace_id}` endpoint.
+
   - Arguments:
     - `workspace_id` (str): Workspace ID.
     - `input_data` (dict): JSON payload to send.
   - Returns: The response from the run endpoint.
+
+- `create_function`: Creates a new function (workspace) with the given name and code.
+
+  - Arguments:
+    - `name` (str): Name for the function/workspace.
+    - `code` (str): Initial code for the function.
+  - Returns: The created workspace object.
+
+- `get_function_code`: Gets the code for a function (workspace).
+
+  - Arguments:
+    - `workspace_id` (str): Workspace ID.
+  - Returns: The code for the workspace.
+
+- `update_function_code`: Updates the code for a function (workspace).
+
+  - Arguments:
+    - `workspace_id` (str): Workspace ID.
+    - `code` (str): The new code to set.
+  - Returns: The response from the update endpoint.
+
+- `check_deployment`: Gets the latest deployment for a function (workspace).
+  - Arguments:
+    - `workspace_id` (str): Workspace ID.
+  - Returns: The latest deployment object.
 
 You can test these with a FastMCP client or by sending a tool call via stdio.
 

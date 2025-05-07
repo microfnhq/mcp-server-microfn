@@ -63,6 +63,90 @@ mcp = FastMCP("MicroFn MCP Server", **mcp_init_kwargs_for_fastmcp)
 
 
 class MicroFnAPIClient:
+    def create_workspace_with_code(self, name: str, code: str) -> dict:
+        """
+        Creates a new workspace with the given name and initial code.
+
+        Args:
+            name (str): Name for the workspace.
+            code (str): Initial code for the workspace.
+
+        Returns:
+            dict: The created workspace object.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/workspaces"
+        body = {"name": name, "initialCode": code}
+        log_event(f"POST {url} with body: {body}")
+        resp = httpx.post(url, headers=self._headers(), json=body, timeout=20)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("workspace", {})
+
+    def get_workspace_code(self, workspace_id: str) -> str:
+        """
+        Gets the code for a workspace.
+
+        Args:
+            workspace_id (str): Workspace ID.
+
+        Returns:
+            str: The code for the workspace.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/code"
+        log_event(f"GET {url}")
+        resp = httpx.get(url, headers=self._headers(), timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("code", "")
+
+    def update_workspace_code(self, workspace_id: str, code: str) -> dict:
+        """
+        Updates the code for a workspace.
+
+        Args:
+            workspace_id (str): Workspace ID.
+            code (str): The new code to set.
+
+        Returns:
+            dict: The response from the update endpoint.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/code"
+        body = {"code": code}
+        log_event(f"POST {url} with body: {body}")
+        resp = httpx.post(url, headers=self._headers(), json=body, timeout=20)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_latest_deployment(self, workspace_id: str) -> dict:
+        """
+        Gets the latest deployment for a workspace.
+
+        Args:
+            workspace_id (str): Workspace ID.
+
+        Returns:
+            dict: The latest deployment object.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}/deployments/latest"
+        log_event(f"GET {url}")
+        resp = httpx.get(url, headers=self._headers(), timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("deployment", {})
+
     BASE_URL = "http://localhost:3000/api"
     RUN_BASE_URL = "http://localhost:3000"
 
@@ -197,3 +281,112 @@ def list_functions() -> list:
 if __name__ == "__main__":
     log_event("MCP server starting up")
     mcp.run()
+
+
+# --- New MCP Tools ---
+
+
+@mcp.tool()
+def create_function(name: str, code: str) -> dict:
+    """
+    Creates a new function (workspace) with the given name and code.
+
+    Args:
+        name (str): Name for the function/workspace.
+        code (str): Initial code for the function.
+
+    Returns:
+        dict: The created workspace object.
+    """
+    log_event(f"create_function tool called with name: {name}")
+    token = app_config.microfn_api_token
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+    client = MicroFnAPIClient(token=token)
+    result = client.create_workspace_with_code(name, code)
+    log_event(f"create_function result: {result}")
+    return result
+
+
+@mcp.tool()
+def get_function_code(workspace_id: str) -> str:
+    """
+    Gets the code for a function (workspace).
+
+    Args:
+        workspace_id (str): Workspace ID.
+
+    Returns:
+        str: The code for the workspace.
+    """
+    log_event(f"get_function_code tool called for workspace {workspace_id}")
+    token = app_config.microfn_api_token
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+    client = MicroFnAPIClient(token=token)
+    code = client.get_workspace_code(workspace_id)
+    log_event(f"get_function_code result: {code}")
+    return code
+
+
+@mcp.tool()
+def update_function_code(workspace_id: str, code: str) -> dict:
+    """
+    Updates the code for a function (workspace).
+
+    Args:
+        workspace_id (str): Workspace ID.
+        code (str): The new code to set.
+
+    Returns:
+        dict: The response from the update endpoint.
+    """
+    log_event(f"update_function_code tool called for workspace {workspace_id}")
+    token = app_config.microfn_api_token
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+    client = MicroFnAPIClient(token=token)
+    result = client.update_workspace_code(workspace_id, code)
+    log_event(f"update_function_code result: {result}")
+    return result
+
+
+@mcp.tool()
+def check_deployment(workspace_id: str) -> dict:
+    """
+    Gets the latest deployment for a function (workspace).
+
+    Args:
+        workspace_id (str): Workspace ID.
+
+    Returns:
+        dict: The latest deployment object.
+    """
+    log_event(f"check_deployment tool called for workspace {workspace_id}")
+    token = app_config.microfn_api_token
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+    client = MicroFnAPIClient(token=token)
+    result = client.get_latest_deployment(workspace_id)
+    log_event(f"check_deployment result: {result}")
+    return result

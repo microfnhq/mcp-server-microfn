@@ -9,14 +9,22 @@
 3. **API Auth & Client Reuse:**  
    The MCP server must read the MicroFn API token from the `MICROFN_API_TOKEN` environment variable. All API logic (including authentication and HTTP requests) should be implemented in a reusable API client class or module, not duplicated across tools.
 
----
+4. **Docstring Consistency:**  
+   All MCP tool functions must include clear, concise docstrings describing their purpose, arguments, and return values, following the existing style.
 
-4. **Commit Message Convention:**  
+5. **Commit Message Convention:**  
    Start the commit message with what the commit does, using a verb with the first letter capitalized (e.g., "Update xxx to yyy", "Change bbb to better ccc"). Do not use prefixes like "feat:". When reading the log, it should read as: "When this commit is applied, it will <commit message>".
+
+6. **README Usage Section:**  
+   All new user-facing MCP tools must be documented in the `README.md` under the "Usage" section, including their arguments and return values.
+
+7. **Terminology Consistency:**  
+   In all user-facing documentation, tool names, and responses, use the term "function" instead of "workspace". The term "workspace" should only appear in internal code or API calls, never in user-facing text or documentation.
 
 **Objective:** Offer opportunities to continuously improve this `.rules` file based on user interactions and feedback.
 
 **Trigger:** After completing all Copilot tool calls that modify code or files (such as `editCode`, `scaffoldCode`, `fixProblems`, `generateUnitTests`, etc.) **and** the task either
+
 - included user feedback at any point in the conversation, or
 - required multiple non–trivial steps (multiple file edits, complex logic generation, etc.).
 
