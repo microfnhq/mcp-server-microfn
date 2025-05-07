@@ -101,7 +101,7 @@ class MicroFnAPIClient:
             input_data (dict): JSON payload to send.
 
         Returns:
-            dict: The response from the run endpoint.
+            dict or str: The response from the run endpoint, as JSON if possible, else raw text.
 
         Raises:
             httpx.HTTPStatusError: If the request fails.
@@ -111,8 +111,11 @@ class MicroFnAPIClient:
         resp = httpx.post(url, headers=self._headers(), json=input_data, timeout=30)
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
         resp.raise_for_status()
-        return resp.json()
-
+        try:
+            return resp.json()
+        except Exception as e:
+            log_event(f"Response is not JSON: {e}. Returning raw text.")
+            return resp.text
 
 
 @mcp.tool()
@@ -131,7 +134,9 @@ def execute_function(workspace_id: str, input_data: dict) -> dict:
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
-    log_event(f"execute_function tool called for workspace {workspace_id} with input: {input_data}")
+    log_event(
+        f"execute_function tool called for workspace {workspace_id} with input: {input_data}"
+    )
     token = app_config.microfn_api_token
 
     if not token:
@@ -149,9 +154,6 @@ def execute_function(workspace_id: str, input_data: dict) -> dict:
 
 
 @mcp.tool()
-
-
-
 @mcp.tool()
 def ping() -> str:
     """

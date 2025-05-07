@@ -11,6 +11,9 @@
 
 ---
 
+4. **Commit Message Convention:**  
+   Start the commit message with what the commit does, using a verb with the first letter capitalized (e.g., "Update xxx to yyy", "Change bbb to better ccc"). Do not use prefixes like "feat:". When reading the log, it should read as: "When this commit is applied, it will <commit message>".
+
 **Objective:** Offer opportunities to continuously improve this `.rules` file based on user interactions and feedback.
 
 **Trigger:** After completing all Copilot tool calls that modify code or files (such as `editCode`, `scaffoldCode`, `fixProblems`, `generateUnitTests`, etc.) **and** the task either
