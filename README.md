@@ -52,7 +52,7 @@ The server exposes the following tools:
 - `execute_function`: Executes the main function in the specified workspace using the `/run/{workspace_id}` endpoint.
 
   - Arguments:
-    - `workspace_id` (str): Workspace ID.
+    - `function_id` (str): Function ID.
     - `input_data` (dict): JSON payload to send.
   - Returns: The response from the run endpoint.
 
@@ -66,19 +66,19 @@ The server exposes the following tools:
 - `get_function_code`: Gets the code for a function (workspace).
 
   - Arguments:
-    - `workspace_id` (str): Workspace ID.
+    - `function_id` (str): Function ID.
   - Returns: The code for the workspace.
 
 - `update_function_code`: Updates the code for a function (workspace).
 
   - Arguments:
-    - `workspace_id` (str): Workspace ID.
+    - `function_id` (str): Function ID.
     - `code` (str): The new code to set.
   - Returns: The response from the update endpoint.
 
 - `check_deployment`: Gets the latest deployment for a function (workspace).
   - Arguments:
-    - `workspace_id` (str): Workspace ID.
+    - `function_id` (str): Function ID.
   - Returns: The latest deployment object.
 
 You can test these with a FastMCP client or by sending a tool call via stdio.
