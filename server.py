@@ -13,6 +13,9 @@ import tools.check_deployment
 # MicroFnAPIClient is now in api_client.py
 
 
-if __name__ == "__main__":
+def main():
     log_event("MCP server starting up")
     mcp.run()
+
+if __name__ == "__main__":
+    main()
