@@ -91,23 +91,44 @@ class MicroFnAPIClient:
         resp.raise_for_status()
         return resp.json().get("workspaces", [])
 
-    def execute_function(self, wsid: str, input_data: dict):
+    def execute_function(self, workspace_id: str, input_data: dict):
         """
-        Executes the main function in the specified workspace with the provided input.
+        Executes the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
 
         Args:
-            wsid (str): Workspace ID.
-            input_data (dict): Input to pass to the function.
+            workspace_id (str): Workspace ID.
+            input_data (dict): JSON payload to send.
 
         Returns:
-            dict: The output from the function execution.
+            dict: The response from the run endpoint.
 
         Raises:
             httpx.HTTPStatusError: If the request fails.
         """
-        url = f"{self.BASE_URL}/workspaces/{wsid}/run"
-        log_event(f"POST {url} with input: {input_data}")
-        resp = httpx.post(url, headers=self._headers(), json={"input": input_data}, timeout=30)
+        url = f"{self.BASE_URL}/run/{workspace_id}"
+        log_event(f"POST {url} with JSON body: {input_data}")
+        resp = httpx.post(url, headers=self._headers(), json=input_data, timeout=30)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json()
+
+    def run_(self, workspace_id: str, input_data: dict):
+        """
+        Runs the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
+
+        Args:
+            workspace_id (str): The workspace ID.
+            input_data (dict): The JSON payload to send.
+
+        Returns:
+            dict: The response from the run endpoint.
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails.
+        """
+        url = f"{self.BASE_URL}/run/{workspace_id}"
+        log_event(f"POST {url} with JSON body: {input_data}")
+        resp = httpx.post(url, headers=self._headers(), json=input_data, timeout=30)
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
         resp.raise_for_status()
         return resp.json()
@@ -117,22 +138,23 @@ class MicroFnAPIClient:
 
 
 @mcp.tool()
-def execute_function(wsid: str, input_data: dict) -> dict:
+@mcp.tool()
+def execute_function(workspace_id: str, input_data: dict) -> dict:
     """
-    Executes the main function in the specified workspace with the provided input.
+    Executes the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
 
     Args:
-        wsid (str): Workspace ID.
-        input_data (dict): Input to pass to the function.
+        workspace_id (str): Workspace ID.
+        input_data (dict): JSON payload to send.
 
     Returns:
-        dict: The output from the function execution.
+        dict: The response from the run endpoint.
 
     Raises:
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
-    log_event(f"execute_function tool called for workspace {wsid} with input: {input_data}")
+    log_event(f"execute_function tool called for workspace {workspace_id} with input: {input_data}")
     token = app_config.microfn_api_token
 
     if not token:
@@ -144,9 +166,13 @@ def execute_function(wsid: str, input_data: dict) -> dict:
         )
 
     client = MicroFnAPIClient(token=token)
-    result = client.execute_function(wsid, input_data)
+    result = client.execute_function(workspace_id, input_data)
     log_event(f"execute_function result: {result}")
     return result
+
+
+@mcp.tool()
+
 
 
 @mcp.tool()
