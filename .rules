@@ -28,7 +28,6 @@
 - included user feedback at any point in the conversation, or
 - required multiple non–trivial steps (multiple file edits, complex logic generation, etc.).
 
-
 **Process:**
 
 1. **Offer Reflection**  
@@ -43,7 +42,6 @@
    b. **Identify Active Rules** – List the specific rule files that were in effect during the task (e.g. `.rules`).  
    c. **Formulate & Propose Improvements** – Generate concrete, actionable suggestions for improving those files. Prioritize changes that directly address user feedback. When practical, present `replace_in_file` diff blocks; otherwise describe the edits clearly.  
    d. **Await User Action on Suggestions** – Ask if the user agrees with the proposed improvements and whether they’d like them applied _now_ using the relevant Copilot tool (`editCode`, `scaffoldCode`, etc.). If approved, apply the changes and then continue with the original Copilot action.
-
 
 **Commit Offer Rule:**
 After each multi-step action (any task involving multiple file edits, complex logic, or user feedback), once the task is completed, always offer the user the option to make a commit summarizing the changes.

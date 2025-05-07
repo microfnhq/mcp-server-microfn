@@ -1,0 +1,37 @@
+from config import mcp, app_config, log_event
+from api_client import MicroFnAPIClient
+
+
+@mcp.tool()
+def execute_function(function_id: str, input_data: dict) -> dict:
+    """
+    Executes the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
+
+    Args:
+        function_id (str): Function ID.
+        input_data (dict): JSON payload to send.
+
+    Returns:
+        dict: The response from the run endpoint.
+
+    Raises:
+        RuntimeError: If the API token is not configured.
+        httpx.HTTPStatusError: If the request fails.
+    """
+    log_event(
+        f"execute_function tool called for function {function_id} with input: {input_data}"
+    )
+    token = app_config.microfn_api_token
+
+    if not token:
+        log_event(
+            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
+        )
+        raise RuntimeError(
+            "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
+        )
+
+    client = MicroFnAPIClient(token=token)
+    result = client.execute_function(function_id, input_data)
+    log_event(f"execute_function result: {result}")
+    return result
