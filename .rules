@@ -19,7 +19,21 @@
    All new user-facing MCP tools must be documented in the `README.md` under the "Usage" section, including their arguments and return values.
 
 7. **Terminology Consistency:**  
-   In all user-facing documentation, tool names, and responses, use the term "function" instead of "workspace". The term "workspace" should only appear in internal code or API calls, never in user-facing text or documentation.
+   - In all user-facing documentation, tool names, arguments, and responses, use the term "function" and the argument name `function_id` (never `workspace_id`).  
+   - The term `workspace_id` is only allowed in internal code or API calls, never in anything user-facing or in the README.  
+   - This rule applies to all new and existing tools, documentation, and examples.
+
+**Quickstart for Adding New Tools:**
+1. Place the implementation in a new or existing module in the `tools/` directory.
+2. Follow the argument and docstring conventions of existing tools.
+3. If the tool wraps an API endpoint, add or reuse a method in `api_client.py`.
+4. Always import the new tool in `server.py` to ensure it is exported.
+5. Update the `README.md` Usage section with the tool’s name, arguments, return values, and an example.
+6. Use `function_id` for all user-facing arguments and documentation, never `workspace_id`.
+7. Before scanning the codebase, check this quickstart and the README for patterns and conventions.
+
+**Server Export Enforcement:**  
+Every tool in `tools/` must be explicitly imported in `server.py`, or it will not be available to the MCP server. This must be checked and enforced for every new tool.
 
 **Objective:** Offer opportunities to continuously improve this `.rules` file based on user interactions and feedback.
 

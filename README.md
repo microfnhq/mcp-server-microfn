@@ -188,6 +188,18 @@ The server exposes the following tools:
     - `secret_id` (str): The secret ID.
   - Returns: Empty dict on success.
 
+- `rename_function`: Renames a function (workspace) by its ID.
+  - Arguments:
+    - `function_id` (str): The ID of the function (workspace) to rename.
+    - `new_name` (str): The new name for the function (workspace).
+  - Returns: The updated workspace object.
+
+  **Example:**
+  ```js
+  // Rename a function (workspace) by ID
+  const result = await mcp.rename_function({ function_id: "abc123", new_name: "MyRenamedFunction" });
+  ```
+
 You can test these with a FastMCP client or by sending a tool call via stdio.
 
 ---

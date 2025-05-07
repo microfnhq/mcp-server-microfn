@@ -132,3 +132,22 @@ class MicroFnAPIClient:
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
         resp.raise_for_status()
         return resp.json() if resp.text else {}
+
+    def update_workspace_name(self, workspace_id: str, new_name: str) -> dict:
+        """
+        Update the name of a workspace (function).
+
+        Args:
+            workspace_id (str): The workspace ID.
+            new_name (str): The new name for the workspace.
+
+        Returns:
+            dict: The updated workspace object.
+        """
+        url = f"{self.BASE_URL}/workspaces/{workspace_id}"
+        body = {"name": new_name}
+        log_event(f"PATCH {url} with body: {body}")
+        resp = httpx.patch(url, headers=self._headers(), json=body, timeout=10)
+        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
+        resp.raise_for_status()
+        return resp.json().get("workspace", {})

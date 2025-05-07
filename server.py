@@ -7,6 +7,7 @@ import tools.get_function_code
 import tools.update_function_code
 import tools.check_deployment
 import tools.secret
+import tools.rename_function
 
 # --- MicroFn API Client (Reusable) ---
 
