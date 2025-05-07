@@ -64,6 +64,7 @@ mcp = FastMCP("MicroFn MCP Server", **mcp_init_kwargs_for_fastmcp)
 
 class MicroFnAPIClient:
     BASE_URL = "http://localhost:3000/api"
+    RUN_BASE_URL = "http://localhost:3000"
 
     def __init__(self, token: str):
         if not token:
@@ -105,28 +106,7 @@ class MicroFnAPIClient:
         Raises:
             httpx.HTTPStatusError: If the request fails.
         """
-        url = f"{self.BASE_URL}/run/{workspace_id}"
-        log_event(f"POST {url} with JSON body: {input_data}")
-        resp = httpx.post(url, headers=self._headers(), json=input_data, timeout=30)
-        log_event(f"Response status: {resp.status_code}, body: {resp.text}")
-        resp.raise_for_status()
-        return resp.json()
-
-    def run_(self, workspace_id: str, input_data: dict):
-        """
-        Runs the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
-
-        Args:
-            workspace_id (str): The workspace ID.
-            input_data (dict): The JSON payload to send.
-
-        Returns:
-            dict: The response from the run endpoint.
-
-        Raises:
-            httpx.HTTPStatusError: If the request fails.
-        """
-        url = f"{self.BASE_URL}/run/{workspace_id}"
+        url = f"{self.RUN_BASE_URL}/run/{workspace_id}"
         log_event(f"POST {url} with JSON body: {input_data}")
         resp = httpx.post(url, headers=self._headers(), json=input_data, timeout=30)
         log_event(f"Response status: {resp.status_code}, body: {resp.text}")
@@ -134,10 +114,7 @@ class MicroFnAPIClient:
         return resp.json()
 
 
-# --- MCP Tools ---
 
-
-@mcp.tool()
 @mcp.tool()
 def execute_function(workspace_id: str, input_data: dict) -> dict:
     """
