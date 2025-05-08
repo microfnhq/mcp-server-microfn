@@ -3,8 +3,8 @@ from typing import Any
 
 
 class MicroFnAPIClient:
-    BASE_URL = "http://localhost:3000/api"
-    RUN_BASE_URL = "http://localhost:3000"
+    BASE_URL = "https://microfn.dev/api"
+    RUN_BASE_URL = "http://microfn.dev"
 
     def __init__(self, token: str):
         if not token:
