@@ -200,6 +200,78 @@ The server exposes the following tools:
   const result = await mcp.rename_function({ function_id: "abc123", new_name: "MyRenamedFunction" });
   ```
 
+- `list_packages`: Lists all npm packages installed for a function.
+  - Arguments:
+    - `function_id` (str): Function ID to list packages for.
+  - Returns: List of package objects with name and version.
+
+  **Example:**
+  ```js
+  // List all packages for a function
+  const packages = await mcp.list_packages({ function_id: "abc123" });
+  // Result: [{ "name": "lodash", "version": "4.17.21" }, ...]
+  ```
+
+- `install_package`: Installs an npm package for a function.
+  - Arguments:
+    - `function_id` (str): Function ID to install the package for.
+    - `name` (str): Package name to install.
+    - `version` (str): Package version to install.
+  - Returns: The installed package object.
+
+  **Example:**
+  ```js
+  // Install a package for a function
+  const result = await mcp.install_package({ 
+    function_id: "abc123", 
+    name: "axios", 
+    version: "1.6.2" 
+  });
+  ```
+
+- `update_package`: Updates an npm package version for a function.
+  - Arguments:
+    - `function_id` (str): Function ID to update the package for.
+    - `name` (str): Package name to update.
+    - `version` (str): New package version.
+  - Returns: The updated package object.
+
+  **Example:**
+  ```js
+  // Update a package version
+  const result = await mcp.update_package({ 
+    function_id: "abc123", 
+    name: "axios", 
+    version: "1.7.0" 
+  });
+  ```
+
+- `remove_package`: Removes an npm package from a function.
+  - Arguments:
+    - `function_id` (str): Function ID to remove the package from.
+    - `name` (str): Package name to remove.
+  - Returns: Success response.
+
+  **Example:**
+  ```js
+  // Remove a package from a function
+  const result = await mcp.remove_package({ 
+    function_id: "abc123", 
+    name: "axios" 
+  });
+  ```
+
+- `update_package_layer`: Updates the Lambda layer with the function's packages.
+  - Arguments:
+    - `function_id` (str): Function ID to update the package layer for.
+  - Returns: Success response.
+
+  **Example:**
+  ```js
+  // Update the package layer for a function
+  const result = await mcp.update_package_layer({ function_id: "abc123" });
+  ```
+
 You can test these with a FastMCP client or by sending a tool call via stdio.
 
 ---

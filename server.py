@@ -8,6 +8,7 @@ import tools.update_function_code
 import tools.check_deployment
 import tools.secret
 import tools.rename_function
+import tools.package_management
 
 # --- MicroFn API Client (Reusable) ---
 
