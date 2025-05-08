@@ -24,7 +24,6 @@ else:
 
 
 def log_event(message):
-    print(message)
     logging.info(message)
 
 
@@ -43,7 +42,7 @@ try:
     app_config = AppSettings()
     # Log the loaded token for debugging (avoid in production if sensitive)
     if app_config.microfn_api_token:
-        log_event(f"Pydantic AppSettings loaded MICROFN_API_TOKEN.")
+        log_event("Pydantic AppSettings loaded MICROFN_API_TOKEN.")
     else:
         log_event("Pydantic AppSettings: MICROFN_API_TOKEN not found or is empty.")
 except Exception as e:
