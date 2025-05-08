@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def create_function(name: str, code: str, ctx) -> dict:
+async def create_function(name: str, code: str, ctx: Context) -> dict:
     """
     Creates a new function (workspace) with the given name and code.
 

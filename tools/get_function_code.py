@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def get_function_code(function_id: str, ctx) -> str:
+async def get_function_code(function_id: str, ctx: Context) -> str:
     """
     Gets the code for a function.
 

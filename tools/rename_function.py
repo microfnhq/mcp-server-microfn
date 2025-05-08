@@ -1,8 +1,9 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 @mcp.tool()
-async def rename_function(function_id: str, new_name: str, ctx) -> dict:
+async def rename_function(function_id: str, new_name: str, ctx: Context) -> dict:
     """
     Renames a function (workspace) by its ID.
 

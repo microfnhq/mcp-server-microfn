@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def update_function_code(function_id: str, code: str, ctx) -> dict:
+async def update_function_code(function_id: str, code: str, ctx: Context) -> dict:
     """
     Updates the code for a function.
 

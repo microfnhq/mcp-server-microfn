@@ -1,8 +1,9 @@
 from config import mcp
+from fastmcp import Context
 
 
 @mcp.tool()
-async def ping(ctx) -> str:
+async def ping(ctx: Context) -> str:
     """
     Responds with 'pong' to test server connectivity.
 

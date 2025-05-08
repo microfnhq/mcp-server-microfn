@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def get_secrets(workspace_id: str, ctx) -> list:
+async def get_secrets(workspace_id: str, ctx: Context) -> list:
     """
     Retrieves all secrets for the specified function (workspace).
 
@@ -31,7 +32,7 @@ async def get_secrets(workspace_id: str, ctx) -> list:
 
 
 @mcp.tool()
-async def create_secret(workspace_id: str, key: str, value: str, ctx) -> list:
+async def create_secret(workspace_id: str, key: str, value: str, ctx: Context) -> list:
     """
     Creates a new secret for the specified function (workspace).
     
@@ -72,7 +73,7 @@ async def create_secret(workspace_id: str, key: str, value: str, ctx) -> list:
 
 
 @mcp.tool()
-async def delete_secret(workspace_id: str, secret_id: str, ctx) -> dict:
+async def delete_secret(workspace_id: str, secret_id: str, ctx: Context) -> dict:
     """
     Deletes a secret from the specified function (workspace).
 

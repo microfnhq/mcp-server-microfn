@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def check_deployment(function_id: str, ctx) -> dict:
+async def check_deployment(function_id: str, ctx: Context) -> dict:
     """
     Gets the latest deployment for a function.
 

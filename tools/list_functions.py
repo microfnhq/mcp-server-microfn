@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def list_functions(ctx) -> list:
+async def list_functions(ctx: Context) -> list:
     """
     Lists all functions for the authenticated user using the MicroFn API.
 

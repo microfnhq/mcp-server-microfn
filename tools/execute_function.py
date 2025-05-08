@@ -1,9 +1,10 @@
 from config import mcp, app_config
 from api_client import MicroFnAPIClient
+from fastmcp import Context
 
 
 @mcp.tool()
-async def execute_function(function_id: str, input_data: dict, ctx) -> dict:
+async def execute_function(function_id: str, input_data: dict, ctx: Context) -> dict:
     """
     Executes the main function in the specified workspace using POST /run/{workspace_id} with a JSON body.
 
