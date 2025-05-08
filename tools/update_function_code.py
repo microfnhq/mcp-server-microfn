@@ -1,9 +1,9 @@
-from config import mcp, app_config, log_event
+from config import mcp, app_config
 from api_client import MicroFnAPIClient
 
 
 @mcp.tool()
-def update_function_code(function_id: str, code: str) -> dict:
+async def update_function_code(function_id: str, code: str, ctx) -> dict:
     """
     Updates the code for a function.
 
@@ -44,16 +44,15 @@ def update_function_code(function_id: str, code: str) -> dict:
     Returns:
         dict: The response from the update endpoint.
     """
-    log_event(f"update_function_code tool called for function {function_id}")
+    await ctx.info(f"Updating code for function {function_id}")
     token = app_config.microfn_api_token
     if not token:
-        log_event(
-            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
-        )
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError(
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
     client = MicroFnAPIClient(token=token)
     result = client.update_workspace_code(function_id, code)
-    log_event(f"update_function_code result: {result}")
+    await ctx.info("Function code updated successfully")
+    await ctx.debug(f"Update result: {result}")
     return result

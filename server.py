@@ -1,4 +1,4 @@
-from config import mcp, app_config, log_event
+from config import mcp, app_config
 import tools.execute_function
 import tools.ping
 import tools.list_functions
@@ -16,8 +16,7 @@ import tools.rename_function
 
 
 def main():
-    log_event("MCP server starting up")
-    mcp.run()
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

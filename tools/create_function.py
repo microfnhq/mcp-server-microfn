@@ -1,9 +1,9 @@
-from config import mcp, app_config, log_event
+from config import mcp, app_config
 from api_client import MicroFnAPIClient
 
 
 @mcp.tool()
-def create_function(name: str, code: str) -> dict:
+async def create_function(name: str, code: str, ctx) -> dict:
     """
     Creates a new function (workspace) with the given name and code.
 
@@ -44,16 +44,16 @@ def create_function(name: str, code: str) -> dict:
     Returns:
         dict: The created workspace object.
     """
-    log_event(f"create_function tool called with name: {name}")
+    await ctx.info(f"Creating new function with name: {name}")
+    await ctx.debug("Validating API token")
     token = app_config.microfn_api_token
     if not token:
-        log_event(
-            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
-        )
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError(
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
     client = MicroFnAPIClient(token=token)
     result = client.create_workspace_with_code(name, code)
-    log_event(f"create_function result: {result}")
+    await ctx.info("Function created successfully")
+    await ctx.debug(f"Result: {result}")
     return result

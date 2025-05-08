@@ -1,9 +1,9 @@
-from config import mcp, app_config, log_event
+from config import mcp, app_config
 from api_client import MicroFnAPIClient
 
 
 @mcp.tool()
-def get_secrets(workspace_id: str) -> list:
+async def get_secrets(workspace_id: str, ctx) -> list:
     """
     Retrieves all secrets for the specified function (workspace).
 
@@ -17,21 +17,21 @@ def get_secrets(workspace_id: str) -> list:
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
-    log_event(f"get_secrets tool called for workspace {workspace_id}")
+    await ctx.info(f"Getting secrets for workspace {workspace_id}")
     token = app_config.microfn_api_token
 
     if not token:
-        log_event("MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables.")
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError("MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server.")
 
     client = MicroFnAPIClient(token=token)
     secrets = client.get_secrets(workspace_id)
-    log_event(f"get_secrets result: {secrets}")
+    await ctx.debug(f"Retrieved secrets: {secrets}")
     return secrets
 
 
 @mcp.tool()
-def create_secret(workspace_id: str, key: str, value: str) -> list:
+async def create_secret(workspace_id: str, key: str, value: str, ctx) -> list:
     """
     Creates a new secret for the specified function (workspace).
     
@@ -57,21 +57,22 @@ def create_secret(workspace_id: str, key: str, value: str) -> list:
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
-    log_event(f"create_secret tool called for workspace {workspace_id} with key: {key}")
+    await ctx.info(f"Creating secret with key '{key}' for workspace {workspace_id}")
     token = app_config.microfn_api_token
 
     if not token:
-        log_event("MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables.")
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError("MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server.")
 
     client = MicroFnAPIClient(token=token)
     secrets = client.create_secret(workspace_id, key, value)
-    log_event(f"create_secret result: {secrets}")
+    await ctx.info("Secret created successfully")
+    await ctx.debug(f"Updated secrets list: {secrets}")
     return secrets
 
 
 @mcp.tool()
-def delete_secret(workspace_id: str, secret_id: str) -> dict:
+async def delete_secret(workspace_id: str, secret_id: str, ctx) -> dict:
     """
     Deletes a secret from the specified function (workspace).
 
@@ -86,14 +87,15 @@ def delete_secret(workspace_id: str, secret_id: str) -> dict:
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
-    log_event(f"delete_secret tool called for workspace {workspace_id} and secret_id: {secret_id}")
+    await ctx.info(f"Deleting secret {secret_id} from workspace {workspace_id}")
     token = app_config.microfn_api_token
 
     if not token:
-        log_event("MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables.")
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError("MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server.")
 
     client = MicroFnAPIClient(token=token)
     result = client.delete_secret(workspace_id, secret_id)
-    log_event(f"delete_secret result: {result}")
+    await ctx.info("Secret deleted successfully")
+    await ctx.debug(f"Delete result: {result}")
     return result

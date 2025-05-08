@@ -1,27 +1,26 @@
-from config import mcp, app_config, log_event
+from config import mcp, app_config
 from api_client import MicroFnAPIClient
 
 
 @mcp.tool()
-def list_functions() -> list:
+async def list_functions(ctx) -> list:
     """
     Lists all functions for the authenticated user using the MicroFn API.
 
     Returns:
         list: List of function objects.
     """
-    log_event("list_functions tool called")
+    await ctx.info("Listing all functions")
     token = app_config.microfn_api_token
 
     if not token:
-        log_event(
-            "MICROFN_API_TOKEN not found in app_config (loaded by Pydantic). Check environment variables."
-        )
+        await ctx.error("MICROFN_API_TOKEN not found in app_config. Check environment variables.")
         raise RuntimeError(
             "MICROFN_API_TOKEN is not configured. Ensure it's set in the environment where the MCP client runs the server."
         )
 
     client = MicroFnAPIClient(token=token)
     workspaces = client.get_workspaces()
-    log_event(f"list_functions result: {workspaces}")
+    await ctx.info(f"Found {len(workspaces)} functions")
+    await ctx.debug(f"Functions list: {workspaces}")
     return workspaces

@@ -1,13 +1,14 @@
-from config import mcp, log_event
+from config import mcp
 
 
 @mcp.tool()
-def ping() -> str:
+async def ping(ctx) -> str:
     """
     Responds with 'pong' to test server connectivity.
 
     Returns:
         str: The string 'pong'.
     """
-    log_event("ping tool called")
+    await ctx.debug("Ping request received")
+    await ctx.info("Responding with pong")
     return "pong"
