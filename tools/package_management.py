@@ -2,6 +2,7 @@ from config import mcp, app_config
 from api_client import MicroFnAPIClient
 from fastmcp import Context
 import httpx
+import json
 from typing import List, Optional
 
 
@@ -42,14 +43,15 @@ async def list_packages(function_id: str, ctx: Context) -> List[dict]:
 
 
 @mcp.tool()
-async def install_package(function_id: str, name: str, version: str, ctx: Context) -> dict:
+async def install_package(function_id: str, name: str, version: Optional[str] = None, ctx: Context = None) -> dict:
     """
     Installs an npm package for a function.
 
     Args:
         function_id (str): Function ID to install the package for.
         name (str): Package name to install.
-        version (str): Package version to install.
+        version (Optional[str]): Package version to install. If not specified or set to 'latest',
+                               the latest version will be fetched from npm registry.
 
     Returns:
         dict: The installed package object.
@@ -58,6 +60,18 @@ async def install_package(function_id: str, name: str, version: str, ctx: Contex
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
+    # Fetch latest version from npm if not specified
+    if not version or version == 'latest':
+        async with httpx.AsyncClient() as client:
+            try:
+                npm_response = await client.get(f"https://registry.npmjs.org/{name}/latest", timeout=10)
+                npm_response.raise_for_status()
+                version = npm_response.json().get('version')
+                await ctx.info(f"Using latest version {version} from npm registry")
+            except httpx.HTTPError as e:
+                await ctx.error(f"Failed to fetch latest version from npm registry: {str(e)}")
+                raise
+    
     await ctx.info(f"Installing package {name}@{version} for function {function_id}")
     token = app_config.microfn_api_token
 
@@ -81,14 +95,15 @@ async def install_package(function_id: str, name: str, version: str, ctx: Contex
 
 
 @mcp.tool()
-async def update_package(function_id: str, name: str, version: str, ctx: Context) -> dict:
+async def update_package(function_id: str, name: str, version: Optional[str] = None, ctx: Context = None) -> dict:
     """
     Updates an npm package version for a function.
 
     Args:
         function_id (str): Function ID to update the package for.
         name (str): Package name to update.
-        version (str): New package version.
+        version (Optional[str]): New package version. If not specified or set to 'latest',
+                               the latest version will be fetched from npm registry.
 
     Returns:
         dict: The updated package object.
@@ -97,6 +112,18 @@ async def update_package(function_id: str, name: str, version: str, ctx: Context
         RuntimeError: If the API token is not configured.
         httpx.HTTPStatusError: If the request fails.
     """
+    # Fetch latest version from npm if not specified
+    if not version or version == 'latest':
+        async with httpx.AsyncClient() as client:
+            try:
+                npm_response = await client.get(f"https://registry.npmjs.org/{name}/latest", timeout=10)
+                npm_response.raise_for_status()
+                version = npm_response.json().get('version')
+                await ctx.info(f"Using latest version {version} from npm registry")
+            except httpx.HTTPError as e:
+                await ctx.error(f"Failed to fetch latest version from npm registry: {str(e)}")
+                raise
+    
     await ctx.info(f"Updating package {name} to version {version} for function {function_id}")
     token = app_config.microfn_api_token
 
