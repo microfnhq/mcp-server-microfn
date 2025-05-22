@@ -1,0 +1,19 @@
+{
+  "name": "mcp-server-microfn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@cloudflare/workers-types": "^4.20230404.0"
+  },
+  "dependencies": {
+    "itty-router": "^4.0.0"
+  }
+}

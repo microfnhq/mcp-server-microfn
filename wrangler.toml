@@ -1,0 +1,19 @@
+name = "mcp-server-microfn"
+main = "src/index.ts"
+compatibility_date = "2024-05-22"
+compatibility_flags = []
+workers_dev = true
+account_id = ""
+route = ""
+zone_id = ""
+
+[build]
+command = "npm run build"
+
+[env.production]
+route = ""
+zone_id = ""
+workers_dev = false
+
+[vars]
+# Add environment variables here, e.g. API_TOKEN = "your-token"

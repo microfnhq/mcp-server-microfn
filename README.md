@@ -1,14 +1,15 @@
-# MicroFn MCP Server (Python)
+# MicroFn MCP Server (Cloudflare Workers, TypeScript)
 
-This is a FastMCP server for the MicroFn project. It exposes MCP tools for integration and automation.
+This project is a Cloudflare Workers MCP server for the MicroFn platform, written in TypeScript. It exposes MCP tools for integration and automation, deployable globally on Cloudflare's edge network.
 
 ---
 
 ## Features
 
-- **Ping tool**: Test the server with a simple ping/pong.
-- **list_functions tool**: Lists all functions for the authenticated user via the MicroFn API.
-- **execute_function tool**: Executes the main function in a specified workspace using the `/run/{workspace_id}` endpoint with a JSON body.
+- **Cloudflare Workers-native:** Fast, scalable, and serverless.
+- **TypeScript:** Type-safe tool definitions and logic.
+- **MCP Tool Registry:** Easily add, update, and document tools.
+- **API-first:** Simple HTTP endpoints for tool listing and invocation.
 
 ---
 
@@ -16,269 +17,111 @@ This is a FastMCP server for the MicroFn project. It exposes MCP tools for integ
 
 ### Prerequisites
 
-- Python 3.8+
-- [FastMCP](https://gofastmcp.com/) (see below)
-- A valid MicroFn API token (set as the `MICROFN_API_TOKEN` environment variable)
+- Node.js 18+
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/)
+- A Cloudflare account (for deployment)
 
 ### Install dependencies
 
 ```sh
-pip install -r requirements.txt
+npm install
 ```
 
-### Run the server
+### Local development
 
-Set your MicroFn API token in the environment:
+Start the development server:
 
 ```sh
-export MICROFN_API_TOKEN=your_microfn_api_token_here
-python my_server.py
+npm run dev
 ```
 
-Or, using FastMCP CLI (if installed globally):
+The server will be available at `http://localhost:8787`.
+
+### Deploy to Cloudflare
 
 ```sh
-fastmcp run my_server.py:mcp
+npm run deploy
 ```
-
-Or, to run locally with uvx and FastMCP dev mode:
-
-```sh
-uvx fastmcp dev server.py
-```
-
----
-
-## MCP Integration Example
-
-To use this server as an MCP tool provider, add the following to your MCP settings:
-
-```json
-  "microfn-mcp": {
-    "command": "uvx",
-    "args": [
-      "--from",
-      "git+https://github.com/microfnhq/mcp-server-microfn",
-      "server"
-    ],
-    "env": {
-      "MICROFN_API_TOKEN": "<token>"
-    }
-  }
-```
-
-Replace the token values with your own as needed.
 
 ---
 
 ## Usage
 
-The server exposes the following tools:
+### List available tools
 
-- `ping`: Returns `"pong"`.
-- `list_functions`: Returns a list of all functions for the authenticated user (requires `MICROFN_API_TOKEN` to be set).
-- `execute_function`: Executes the main function in the specified workspace using the `/run/{workspace_id}` endpoint.
+**Endpoint:**  
+`GET /tools`
 
-  - Arguments:
-    - `function_id` (str): Function ID.
-    - `input_data` (dict): JSON payload to send.
-  - Returns: The response from the run endpoint.
-
-- `create_function`: Creates a new function (workspace) with the given name and code.
-
-  - Arguments:
-    - `name` (str): Name for the function/workspace.
-    - `code` (str): Initial code for the function.
-  - Returns: The created workspace object.
-
-  **Example:**
-  ```js
-  // Create a simple function that returns the sum of two numbers
-  const code = `
-  export default async function main(input) {
-    return input.a + input.b;
+**Response:**
+```json
+[
+  {
+    "name": "hello_world",
+    "description": "Returns a greeting."
   }
-  `;
-  const result = await mcp.create_function({ name: "Adder", code });
-  ```
+]
+```
 
-  **Advanced Example (calling another function):**
-  ```js
-  // Suppose you want to create a function that calls another function by ID
-  import fn from "@microfn/fn";
-  const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
-  const code = `
-  import fn from "@microfn/fn";
-  export default async function main(input) {
-    // Call another function by its ID
-    const result = await fn.executeFunction("${targetFunctionId}", input);
-    return result;
-  }
-  `;
-  const result = await mcp.create_function({ name: "ProxyCaller", code });
-  ```
+### Invoke a tool
 
-- `get_function_code`: Gets the code for a function (workspace).
+**Endpoint:**  
+`POST /tool/{name}`
 
-  - Arguments:
-    - `function_id` (str): Function ID.
-  - Returns: The code for the workspace.
+**Body:**  
+Tool-specific JSON arguments.
 
-- `update_function_code`: Updates the code for a function (workspace).
+**Example:**
+```sh
+curl -X POST http://localhost:8787/tool/hello_world -H "Content-Type: application/json" -d '{}'
+```
 
-  - Arguments:
-    - `function_id` (str): Function ID.
-    - `code` (str): The new code to set.
-  - Returns: The response from the update endpoint.
+**Response:**
+```json
+{ "message": "Hello from Cloudflare Workers MCP server!" }
+```
 
-  **Example:**
-  ```js
-  // Update a function to log its input and return it
-  const code = `
-  export default async function main(input) {
-    console.log("Received input:", input);
-    return input;
-  }
-  `;
-  await mcp.update_function_code({ function_id: "abc123", code });
-  ```
+---
 
-  **Advanced Example (cross-function invocation):**
-  ```js
-  // Update a function to call another function and process its result
-  import fn from "@microfn/fn";
-  const targetFunctionId = "e6a08dec-2206-46fa-bbe0-d760124b57ab";
-  const code = `
-  import fn from "@microfn/fn";
-  export default async function main(input) {
-    // Call another function and add 10 to its result
-    const result = await fn.executeFunction("${targetFunctionId}", input);
-    return result + 10;
-  }
-  `;
-  await mcp.update_function_code({ function_id: "abc123", code });
-  ```
+## Adding New Tools
 
-- `check_deployment`: Gets the latest deployment for a function (workspace).
-  - Arguments:
-    - `function_id` (str): Function ID.
-  - Returns: The latest deployment object.
-
-- `get_secrets`: Retrieves all secrets for the specified function (workspace).
-  - Arguments:
-    - `workspace_id` (str): The function (workspace) ID.
-  - Returns: List of secret objects for the function.
-
-- `create_secret`: Creates a new secret for the specified function (workspace).
-  - **Note:** Secrets cannot be overwritten. If a secret with the same key already exists, you must delete it first before creating a new one with the same key.
-  - Arguments:
-    - `workspace_id` (str): The function (workspace) ID.
-    - `key` (str): The secret key.
-    - `value` (str): The secret value.
-  - Returns: List of secret objects after creation.
-  - **How to retrieve secrets in your function code:**
-    ```js
-    import secret from "@microfn/secret";
-    const url = await secret.getRequired("DISCORD_WEBHOOK_URL");
-    ```
-
-- `delete_secret`: Deletes a secret from the specified function (workspace).
-  - Arguments:
-    - `workspace_id` (str): The function (workspace) ID.
-    - `secret_id` (str): The secret ID.
-  - Returns: Empty dict on success.
-
-- `rename_function`: Renames a function (workspace) by its ID.
-  - Arguments:
-    - `function_id` (str): The ID of the function (workspace) to rename.
-    - `new_name` (str): The new name for the function (workspace).
-  - Returns: The updated workspace object.
-
-  **Example:**
-  ```js
-  // Rename a function (workspace) by ID
-  const result = await mcp.rename_function({ function_id: "abc123", new_name: "MyRenamedFunction" });
-  ```
-
-- `list_packages`: Lists all npm packages installed for a function.
-  - Arguments:
-    - `function_id` (str): Function ID to list packages for.
-  - Returns: List of package objects with name and version.
-
-  **Example:**
-  ```js
-  // List all packages for a function
-  const packages = await mcp.list_packages({ function_id: "abc123" });
-  // Result: [{ "name": "lodash", "version": "4.17.21" }, ...]
-  ```
-
-- `install_package`: Installs an npm package for a function.
-  - Arguments:
-    - `function_id` (str): Function ID to install the package for.
-    - `name` (str): Package name to install.
-    - `version` (str): Package version to install.
-  - Returns: The installed package object.
-
-  **Example:**
-  ```js
-  // Install a package for a function
-  const result = await mcp.install_package({ 
-    function_id: "abc123", 
-    name: "axios", 
-    version: "1.6.2" 
-  });
-  ```
-
-- `update_package`: Updates an npm package version for a function.
-  - Arguments:
-    - `function_id` (str): Function ID to update the package for.
-    - `name` (str): Package name to update.
-    - `version` (str): New package version.
-  - Returns: The updated package object.
-
-  **Example:**
-  ```js
-  // Update a package version
-  const result = await mcp.update_package({ 
-    function_id: "abc123", 
-    name: "axios", 
-    version: "1.7.0" 
-  });
-  ```
-
-- `remove_package`: Removes an npm package from a function.
-  - Arguments:
-    - `function_id` (str): Function ID to remove the package from.
-    - `name` (str): Package name to remove.
-  - Returns: Success response.
-
-  **Example:**
-  ```js
-  // Remove a package from a function
-  const result = await mcp.remove_package({ 
-    function_id: "abc123", 
-    name: "axios" 
-  });
-  ```
-
-- `update_package_layer`: Updates the Lambda layer with the function's packages.
-  - Arguments:
-    - `function_id` (str): Function ID to update the package layer for.
-  - Returns: Success response.
-
-  **Example:**
-  ```js
-  // Update the package layer for a function
-  const result = await mcp.update_package_layer({ function_id: "abc123" });
-  ```
-
-You can test these with a FastMCP client or by sending a tool call via stdio.
+1. Open `src/index.ts`.
+2. Add your tool to the `tools` array:
+   ```ts
+   {
+     name: "my_tool",
+     description: "Describe what your tool does.",
+     handler: async (args) => {
+       // Tool logic here
+       return { result: "Tool output" };
+     }
+   }
+   ```
+3. The tool will be automatically available via `/tools` and `/tool/my_tool`.
 
 ---
 
 ## Project Structure
 
-- `my_server.py` — Main entry point, defines the MCP server and tools.
+- `src/index.ts` — Main entry point, tool registry, and HTTP routing.
+- `wrangler.toml` — Cloudflare Workers configuration.
+- `package.json` — Project metadata and scripts.
+- `tsconfig.json` — TypeScript configuration.
+
+---
+
+## Environment Variables
+
+Add secrets or environment variables in `wrangler.toml` under `[vars]` or using `wrangler secret put`.
+
+---
+
+## Development Tips
+
+- Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to test your server:
+  ```sh
+  npx @modelcontextprotocol/inspector@latest
+  ```
+- Connect to `http://localhost:8787` or your deployed Worker URL.
 
 ---
 
@@ -288,4 +131,4 @@ MIT
 
 ---
 
-Slay your automations with MicroFn + MCP 🛹
+Slay your automations with MicroFn + MCP 🛹 (Cloudflare Workers Edition)
