@@ -1,2 +1,5 @@
-server.log
-.vscode/mcp.json
+node_modules
+
+# wrangler files
+.wrangler
+.dev.vars*
