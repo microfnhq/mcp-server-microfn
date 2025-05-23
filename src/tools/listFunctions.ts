@@ -14,7 +14,7 @@ export async function handleListFunctions(
 	ctx: ExecutionContext,
 ): Promise<{ workspaces?: Workspace[]; error?: string }> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const workspaces = await client.listWorkspaces();
 		return { workspaces };
 	} catch (err: any) {

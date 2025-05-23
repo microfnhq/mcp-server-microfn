@@ -54,7 +54,7 @@ export class MicroFnApiClient {
 
 	constructor(apiToken: string, baseUrl?: string) {
 		this.apiToken = apiToken;
-		this.runBaseUrl = "https://microfn.dev";
+		this.runBaseUrl = baseUrl?.replace('/api', '') || "https://microfn.dev";
 		this.baseUrl = baseUrl || `${this.runBaseUrl}/api`;
 	}
 
