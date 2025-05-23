@@ -56,6 +56,11 @@ export class MicroFnApiClient {
 		this.apiToken = apiToken;
 		this.runBaseUrl = baseUrl?.replace('/api', '') || "https://microfn.dev";
 		this.baseUrl = baseUrl || `${this.runBaseUrl}/api`;
+		console.log('[MicroFnApiClient] Initialized:', {
+			baseUrl: this.baseUrl,
+			runBaseUrl: this.runBaseUrl,
+			hasToken: !!apiToken
+		});
 	}
 
 	private getHeaders(): HeadersInit {
@@ -69,11 +74,17 @@ export class MicroFnApiClient {
 	// --- Package Management ---
 
 	async listPackages(functionId: string): Promise<Array<{ name: string; version: string }>> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages`, {
+		const url = `${this.baseUrl}/workspaces/${functionId}/packages`;
+		console.log('[MicroFnApiClient] GET', url);
+		
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
+		
+		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to list packages: ${res.statusText}`);
+		
 		const data = (await res.json()) as { packages?: Array<{ name: string; version: string }> };
 		return data.packages || [];
 	}
@@ -171,12 +182,23 @@ export class MicroFnApiClient {
 	}
 
 	async listWorkspaces(): Promise<Workspace[]> {
-		const res = await fetch(`${this.baseUrl}/workspaces`, {
+		const url = `${this.baseUrl}/workspaces`;
+		console.log('[MicroFnApiClient] GET', url);
+		
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
-		if (!res.ok) throw new Error(`Failed to list workspaces: ${res.statusText}`);
+		
+		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+		if (!res.ok) {
+			const errorText = await res.text();
+			console.error('[MicroFnApiClient] Error response:', errorText);
+			throw new Error(`Failed to list workspaces: ${res.statusText}`);
+		}
+		
 		const data = (await res.json()) as { workspaces?: Workspace[] };
+		console.log('[MicroFnApiClient] Found', data.workspaces?.length || 0, 'workspaces');
 		return data.workspaces || [];
 	}
 
@@ -205,19 +227,27 @@ export class MicroFnApiClient {
 	// Function Execution
 
 	async executeFunction(functionId: string, inputData: any): Promise<ExecuteFunctionResult> {
-		const res = await fetch(`${this.runBaseUrl}/run/${functionId}`, {
+		const url = `${this.runBaseUrl}/run/${functionId}`;
+		console.log('[MicroFnApiClient] POST', url);
+		console.log('[MicroFnApiClient] Input data:', JSON.stringify(inputData));
+		
+		const res = await fetch(url, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify(inputData),
 		});
+		
+		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to execute function: ${res.statusText}`);
 
 		try {
 			const result = await res.json();
+			console.log('[MicroFnApiClient] Execution result:', result);
 			return { result };
 		} catch (error) {
 			// If JSON parsing fails, return the text response
 			const textResult = await res.text();
+			console.log('[MicroFnApiClient] Execution result (text):', textResult);
 			return { result: textResult };
 		}
 	}

@@ -35,7 +35,7 @@ export async function handleCheckDeployment(
 		return { deployment: null, error: "functionId is required" };
 	}
 
-	const client = new MicroFnApiClient(token);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 
 	try {
 		const deployment = await client.getLatestDeployment(req.functionId);

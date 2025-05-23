@@ -25,7 +25,7 @@ export async function handleGetSecrets(
 	ctx: ExecutionContext,
 ): Promise<GetSecretsResponse> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const secrets = await client.listSecrets(req.workspaceId);
 		return { success: true, secrets };
 	} catch (error: any) {

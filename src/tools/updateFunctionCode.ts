@@ -24,7 +24,7 @@ export async function handleUpdateFunctionCode(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<UpdateFunctionCodeResponse> {
-	const client = new MicroFnApiClient(token);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
 		const data = await client.updateFunctionCode(params.functionId, params.code);
 		return {

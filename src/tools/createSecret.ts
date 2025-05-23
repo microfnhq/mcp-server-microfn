@@ -37,7 +37,7 @@ export async function handleCreateSecret(
 	ctx: ExecutionContext,
 ): Promise<CreateSecretResponse> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const secrets = await client.createSecret(req.workspaceId, {
 			key: req.key,
 			value: req.value,

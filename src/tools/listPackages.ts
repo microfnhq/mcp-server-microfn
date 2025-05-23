@@ -25,7 +25,7 @@ export async function handleListPackages(
 	ctx: ExecutionContext,
 ): Promise<ListPackagesResponse> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const packages = await client.listPackages(req.functionId);
 		return { success: true, packages };
 	} catch (error: any) {

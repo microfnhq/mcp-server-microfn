@@ -25,7 +25,7 @@ export async function handleUpdatePackageLayer(
 	ctx: ExecutionContext,
 ): Promise<UpdatePackageLayerResponse> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const result = await client.updatePackageLayer(req.functionId);
 		return {
 			success: true,

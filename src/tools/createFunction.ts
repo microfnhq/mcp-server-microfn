@@ -24,7 +24,7 @@ export async function handleCreateFunction(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<CreateFunctionResponse> {
-	const client = new MicroFnApiClient(token);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
 		const workspace = await client.createWorkspace({
 			name: params.name,

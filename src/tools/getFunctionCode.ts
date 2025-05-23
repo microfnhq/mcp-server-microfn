@@ -22,7 +22,7 @@ export async function handleGetFunctionCode(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<GetFunctionCodeResponse> {
-	const client = new MicroFnApiClient(token);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
 		const result = await client.getFunctionCode(req.functionId);
 		return { code: result.code };

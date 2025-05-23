@@ -24,7 +24,7 @@ export async function handleExecuteFunction(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<ExecuteFunctionResponse> {
-	const client = new MicroFnApiClient(token);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
 		const result = await client.executeFunction(params.functionId, params.inputData);
 		return { success: true, result };

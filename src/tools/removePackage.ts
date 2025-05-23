@@ -26,7 +26,7 @@ export async function handleRemovePackage(
 	ctx: ExecutionContext,
 ): Promise<RemovePackageResponse> {
 	try {
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		await client.removePackage(req.functionId, req.name);
 		return {
 			success: true,

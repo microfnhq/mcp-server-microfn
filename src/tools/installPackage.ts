@@ -46,7 +46,7 @@ export async function handleInstallPackage(
 			}
 		}
 
-		const client = new MicroFnApiClient(token);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL);
 		const result = await client.installPackage(req.functionId, req.name, version);
 		return { success: true, package: result };
 	} catch (error: any) {
