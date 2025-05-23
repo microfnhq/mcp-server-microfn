@@ -69,12 +69,13 @@ export class MicroFnApiClient {
 	// --- Package Management ---
 
 	async listPackages(functionId: string): Promise<Array<{ name: string; version: string }>> {
-		const res = await fetch(`${this.baseUrl}/functions/${functionId}/packages`, {
+		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages`, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to list packages: ${res.statusText}`);
-		return await res.json();
+		const data = (await res.json()) as { packages?: Array<{ name: string; version: string }> };
+		return data.packages || [];
 	}
 
 	async installPackage(
@@ -83,13 +84,14 @@ export class MicroFnApiClient {
 		version?: string,
 	): Promise<{ name: string; version: string }> {
 		const body = { name: packageName, version };
-		const res = await fetch(`${this.baseUrl}/functions/${functionId}/packages`, {
+		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify(body),
 		});
 		if (!res.ok) throw new Error(`Failed to install package: ${res.statusText}`);
-		return await res.json();
+		const data = (await res.json()) as { package?: { name: string; version: string } };
+		return data.package || { name: packageName, version: version || "" };
 	}
 
 	async updatePackage(
@@ -99,7 +101,7 @@ export class MicroFnApiClient {
 	): Promise<{ name: string; version: string }> {
 		const body = { version };
 		const res = await fetch(
-			`${this.baseUrl}/functions/${functionId}/packages/${encodeURIComponent(packageName)}`,
+			`${this.baseUrl}/workspaces/${functionId}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "PUT",
 				headers: this.getHeaders(),
@@ -107,12 +109,13 @@ export class MicroFnApiClient {
 			},
 		);
 		if (!res.ok) throw new Error(`Failed to update package: ${res.statusText}`);
-		return await res.json();
+		const data = (await res.json()) as { package?: { name: string; version: string } };
+		return data.package || { name: packageName, version: version || "" };
 	}
 
 	async removePackage(functionId: string, packageName: string): Promise<void> {
 		const res = await fetch(
-			`${this.baseUrl}/functions/${functionId}/packages/${encodeURIComponent(packageName)}`,
+			`${this.baseUrl}/workspaces/${functionId}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "DELETE",
 				headers: this.getHeaders(),
@@ -122,12 +125,13 @@ export class MicroFnApiClient {
 	}
 
 	async updatePackageLayer(functionId: string): Promise<{ message?: string }> {
-		const res = await fetch(`${this.baseUrl}/functions/${functionId}/packages/layer`, {
+		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages/update-layer`, {
 			method: "POST",
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to update package layer: ${res.statusText}`);
-		return await res.json();
+		const data = (await res.json()) as { message?: string };
+		return data;
 	}
 
 	// Workspace (Function) Management
@@ -139,8 +143,8 @@ export class MicroFnApiClient {
 			body: JSON.stringify({ name: params.name, initialCode: params.code }),
 		});
 		if (!res.ok) throw new Error(`Failed to create workspace: ${res.statusText}`);
-		const data = await res.json() as { workspace?: Workspace };
-		return data.workspace || {} as Workspace;
+		const data = (await res.json()) as { workspace?: Workspace };
+		return data.workspace || ({} as Workspace);
 	}
 
 	async updateWorkspace(workspaceId: string, params: UpdateWorkspaceParams): Promise<Workspace> {
@@ -162,8 +166,8 @@ export class MicroFnApiClient {
 		if (!res.ok) {
 			throw new Error(`Failed to rename workspace: ${res.statusText}`);
 		}
-		const data = await res.json() as { workspace?: Workspace };
-		return data.workspace || {} as Workspace;
+		const data = (await res.json()) as { workspace?: Workspace };
+		return data.workspace || ({} as Workspace);
 	}
 
 	async listWorkspaces(): Promise<Workspace[]> {
@@ -172,7 +176,7 @@ export class MicroFnApiClient {
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to list workspaces: ${res.statusText}`);
-		const data = await res.json() as { workspaces?: Workspace[] };
+		const data = (await res.json()) as { workspaces?: Workspace[] };
 		return data.workspaces || [];
 	}
 
@@ -184,7 +188,7 @@ export class MicroFnApiClient {
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to get function code: ${res.statusText}`);
-		const data = await res.json() as { code?: string };
+		const data = (await res.json()) as { code?: string };
 		return { code: data.code || "" };
 	}
 
@@ -207,7 +211,7 @@ export class MicroFnApiClient {
 			body: JSON.stringify(inputData),
 		});
 		if (!res.ok) throw new Error(`Failed to execute function: ${res.statusText}`);
-		
+
 		try {
 			const result = await res.json();
 			return { result };
@@ -226,8 +230,8 @@ export class MicroFnApiClient {
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to get latest deployment: ${res.statusText}`);
-		const data = await res.json() as { deployment?: Deployment };
-		return data.deployment || {} as Deployment;
+		const data = (await res.json()) as { deployment?: Deployment };
+		return data.deployment || ({} as Deployment);
 	}
 
 	// Secrets Management
@@ -238,7 +242,7 @@ export class MicroFnApiClient {
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to list secrets: ${res.statusText}`);
-		const data = await res.json() as { secrets?: Secret[] };
+		const data = (await res.json()) as { secrets?: Secret[] };
 		return data.secrets || [];
 	}
 
@@ -249,7 +253,7 @@ export class MicroFnApiClient {
 			body: JSON.stringify({ key: params.key, value: params.value }),
 		});
 		if (!res.ok) throw new Error(`Failed to create secret: ${res.statusText}`);
-		const data = await res.json() as { secrets?: Secret[] };
+		const data = (await res.json()) as { secrets?: Secret[] };
 		return data.secrets || [];
 	}
 
