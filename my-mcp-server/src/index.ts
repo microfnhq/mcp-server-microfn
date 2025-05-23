@@ -17,7 +17,9 @@ import { handleUpdatePackage } from "./tools/updatePackage";
 import { handleRemovePackage } from "./tools/removePackage";
 import { handleUpdatePackageLayer } from "./tools/updatePackageLayer";
 import { handleRenameFunction } from "./tools/renameFunction";
-import { handleSecretManagement } from "./tools/secretManagement";
+import { handleGetSecrets } from "./tools/getSecrets";
+import { handleCreateSecret } from "./tools/createSecret";
+import { handleDeleteSecret } from "./tools/deleteSecret";
 import { handleUpdateFunctionCode } from "./tools/updateFunctionCode";
 
 // Environment interface
@@ -382,22 +384,74 @@ function createMcpTools(apiToken: string): McpTools {
 			},
 		},
 
-		secretManagement: {
-			description: "Manage secrets for a function (create, list, delete)",
+		getSecrets: {
+			description: "Retrieves all secrets for the specified function (workspace)",
 			inputSchema: {
 				type: "object",
 				properties: {
 					workspaceId: { type: "string" },
-					functionName: { type: "string" },
-					action: { type: "string", enum: ["create", "list", "delete"] },
-					secretName: { type: "string" },
-					secretValue: { type: "string" },
 				},
-				required: ["workspaceId", "functionName", "action"],
+				required: ["workspaceId"],
 			},
 			handler: async (args) => {
 				try {
-					const result = await handleSecretManagement(
+					const result = await handleGetSecrets(
+						apiToken,
+						args,
+						{},
+						{} as ExecutionContext,
+					);
+					return { content: [{ type: "text", text: JSON.stringify(result) }] };
+				} catch (error: any) {
+					return {
+						content: [{ type: "text", text: `Error: ${error.message}` }],
+					};
+				}
+			},
+		},
+
+		createSecret: {
+			description:
+				"Creates a new secret for the specified function (workspace). Secrets cannot be overwritten - delete first if key exists.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					workspaceId: { type: "string" },
+					key: { type: "string" },
+					value: { type: "string" },
+				},
+				required: ["workspaceId", "key", "value"],
+			},
+			handler: async (args) => {
+				try {
+					const result = await handleCreateSecret(
+						apiToken,
+						args,
+						{},
+						{} as ExecutionContext,
+					);
+					return { content: [{ type: "text", text: JSON.stringify(result) }] };
+				} catch (error: any) {
+					return {
+						content: [{ type: "text", text: `Error: ${error.message}` }],
+					};
+				}
+			},
+		},
+
+		deleteSecret: {
+			description: "Deletes a secret from the specified function (workspace)",
+			inputSchema: {
+				type: "object",
+				properties: {
+					workspaceId: { type: "string" },
+					secretId: { type: "string" },
+				},
+				required: ["workspaceId", "secretId"],
+			},
+			handler: async (args) => {
+				try {
+					const result = await handleDeleteSecret(
 						apiToken,
 						args,
 						{},
@@ -663,7 +717,9 @@ export default {
 					removePackage: handleRemovePackage,
 					updatePackageLayer: handleUpdatePackageLayer,
 					renameFunction: handleRenameFunction,
-					secretManagement: handleSecretManagement,
+					getSecrets: handleGetSecrets,
+					createSecret: handleCreateSecret,
+					deleteSecret: handleDeleteSecret,
 					updateFunctionCode: handleUpdateFunctionCode,
 				};
 
