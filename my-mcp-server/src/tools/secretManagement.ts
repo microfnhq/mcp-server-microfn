@@ -25,7 +25,7 @@ export interface CreateSecretParams {
 
 export interface CreateSecretResponse {
 	success: boolean;
-	secret?: Secret;
+	secret?: Secret[];
 	error?: string;
 }
 
@@ -60,11 +60,11 @@ export async function createSecret(
 ): Promise<CreateSecretResponse> {
 	try {
 		const client = new MicroFnApiClient(token);
-		const secret = await client.createSecret(params.functionId, {
+		const secrets = await client.createSecret(params.functionId, {
 			key: params.secretKey,
 			value: params.secretValue,
 		});
-		return { success: true, secret };
+		return { success: true, secret: secrets };
 	} catch (error: any) {
 		return {
 			success: false,
