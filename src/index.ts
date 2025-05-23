@@ -1,26 +1,27 @@
+#!/usr/bin/env node
 // MCP Server implementation with API tools
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 // Import the existing MicroFn API client
-import { MicroFnApiClient, Workspace } from "./microfnApiClient";
+import { MicroFnApiClient, Workspace } from "./microfnApiClient.js";
 
 // Tool handler functions
-import { handleCheckDeployment } from "./tools/checkDeployment";
-import { handleCreateFunction } from "./tools/createFunction";
-import { handleExecuteFunction } from "./tools/executeFunction";
-import { handleGetFunctionCode } from "./tools/getFunctionCode";
-import { handleListFunctions } from "./tools/listFunctions";
-import { handleListPackages } from "./tools/listPackages";
-import { handleInstallPackage } from "./tools/installPackage";
-import { handleUpdatePackage } from "./tools/updatePackage";
-import { handleRemovePackage } from "./tools/removePackage";
-import { handleUpdatePackageLayer } from "./tools/updatePackageLayer";
-import { handleRenameFunction } from "./tools/renameFunction";
-import { handleGetSecrets } from "./tools/getSecrets";
-import { handleCreateSecret } from "./tools/createSecret";
-import { handleDeleteSecret } from "./tools/deleteSecret";
-import { handleUpdateFunctionCode } from "./tools/updateFunctionCode";
+import { handleCheckDeployment } from "./tools/checkDeployment.js";
+import { handleCreateFunction } from "./tools/createFunction.js";
+import { handleExecuteFunction } from "./tools/executeFunction.js";
+import { handleGetFunctionCode } from "./tools/getFunctionCode.js";
+import { handleListFunctions } from "./tools/listFunctions.js";
+import { handleListPackages } from "./tools/listPackages.js";
+import { handleInstallPackage } from "./tools/installPackage.js";
+import { handleUpdatePackage } from "./tools/updatePackage.js";
+import { handleRemovePackage } from "./tools/removePackage.js";
+import { handleUpdatePackageLayer } from "./tools/updatePackageLayer.js";
+import { handleRenameFunction } from "./tools/renameFunction.js";
+import { handleGetSecrets } from "./tools/getSecrets.js";
+import { handleCreateSecret } from "./tools/createSecret.js";
+import { handleDeleteSecret } from "./tools/deleteSecret.js";
+import { handleUpdateFunctionCode } from "./tools/updateFunctionCode.js";
 
 // Environment interface
 export interface Env {

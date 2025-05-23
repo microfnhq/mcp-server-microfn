@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/deleteSecret.ts
 
-import { MicroFnApiClient } from "../microfnApiClient";
+import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface DeleteSecretRequest {
 	workspaceId: string;

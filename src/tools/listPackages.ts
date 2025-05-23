@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/listPackages.ts
 
-import { MicroFnApiClient } from "../microfnApiClient";
+import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface ListPackagesRequest {
 	functionId: string;

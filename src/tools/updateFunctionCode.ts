@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/updateFunctionCode.ts
 
-import { MicroFnApiClient } from "../microfnApiClient";
+import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface UpdateFunctionCodeRequest {
 	functionId: string;

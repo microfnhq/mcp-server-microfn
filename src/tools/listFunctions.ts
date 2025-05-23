@@ -1,6 +1,6 @@
 // listFunctions.ts
 import { Env } from "../index";
-import { MicroFnApiClient, Workspace } from "../microfnApiClient";
+import { MicroFnApiClient, Workspace } from "../microfnApiClient.js";
 
 /**
  * Retrieves the list of all functions/workspaces using MicroFnApiClient.

@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/renameFunction.ts
 
-import { MicroFnApiClient, Workspace } from "../microfnApiClient";
+import { MicroFnApiClient, Workspace } from "../microfnApiClient.js";
 
 export interface RenameFunctionRequest {
 	functionId: string;

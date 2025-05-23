@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/updatePackageLayer.ts
 
-import { MicroFnApiClient } from "../microfnApiClient";
+import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface UpdatePackageLayerRequest {
 	functionId: string;
