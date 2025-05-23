@@ -9,34 +9,34 @@
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
-  
+
   /**
    * Durable Objects for MCP sessions
    */
   "migrations": [
     {
-      "new_sqlite_classes": ["AuthenticatedMCP"],
-      "tag": "v1"
+      "tag": "v1",
+      "new_sqlite_classes": ["AuthenticatedMCP"]
     }
   ],
   "durable_objects": {
     "bindings": [
       {
-        "class_name": "AuthenticatedMCP",
-        "name": "MCP_OBJECT"
+        "name": "MCP_OBJECT",
+        "class_name": "AuthenticatedMCP"
       }
     ]
   },
-  
+
   /**
    * KV namespace for OAuth state
    */
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "OAUTH_KV_ID_PLACEHOLDER"
+      "id": "d5a49e5b1bea43fc9c5f9a8106f83a7f"
     }
   ],
 
@@ -59,10 +59,10 @@
    */
   "vars": {
     "AUTH0_DOMAIN": "dev-7y4mttzmcid8vp1q.us.auth0.com",
-    "AUTH0_CLIENT_ID": "HyP8iENhBA5XBfYomsXxK4DJJIWrpDuy",
-    "AUTH0_REDIRECT_URI": "https://mcp-server-microfn.cf-mfn.workers.dev/callback",
+    "AUTH0_CLIENT_ID": "MjLugXzho9IU9DJxW6GeeD3pb96F11Fc",
+    "AUTH0_REDIRECT_URI": "https://mcp.microfn.dev/callback",
     "AUTH0_REDIRECT_URI_DEV": "http://localhost:8787/callback",
-    "API_BASE_URL": "https://app.microfn.dev",
+    "API_BASE_URL": "https://microfn.dev/api",
     "AUTH0_SCOPE": "openid email profile offline_access",
     "NODE_ENV": "development"
   },
@@ -88,5 +88,10 @@
    * Service Bindings (communicate between multiple Workers)
    * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
    */
-  // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+  // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }],
+
+  /**
+   * Custom Routes
+   */
+  "routes": ["mcp.microfn.dev/*"]
 }
