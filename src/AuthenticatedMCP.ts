@@ -27,14 +27,16 @@ export class AuthenticatedMCP extends McpAgent<Env, {}, UserProps> {
   })
 
   async init() {
-    // Get the MicroFn API token from props or environment
-    const apiToken = this.props.microfnToken || this.env.MICROFN_API_TOKEN;
+    // Use the MicroFn PAT from token exchange
+    const apiToken = this.props.microfnToken;
     
     if (!apiToken) {
-      console.error('[MCP] No MicroFn API token available for user:', this.props.claims.email);
-      // In production, we would query MicroFn API to get the user's PAT based on Auth0 ID
-      throw new Error('No MicroFn API token configured for this user');
+      console.error('[MCP] No MicroFn PAT available for user:', this.props.claims.email);
+      console.error('[MCP] Token exchange may have failed during authentication');
+      throw new Error('No MicroFn API token available for this user. Please re-authenticate.');
     }
+    
+    console.log('[MCP] Using MicroFn PAT for user:', this.props.claims.email);
 
     // Debug tool to show current user info
     this.server.tool('whoami', "Get the current user's details", {}, async () => ({

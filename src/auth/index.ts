@@ -240,6 +240,33 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		return c.text("Received invalid id_token from Auth0", 400);
 	}
 
+	// Exchange Auth0 token for MicroFn PAT
+	console.log('[OAuth] Exchanging Auth0 token for MicroFn PAT');
+	let microfnPAT: string | undefined;
+	
+	try {
+		const apiBaseUrl = c.env.API_BASE_URL || 'https://microfn.dev/api';
+		const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				idToken: result.id_token,
+			}),
+		});
+
+		if (exchangeResponse.ok) {
+			const data = await exchangeResponse.json() as { token: string };
+			microfnPAT = data.token;
+			console.log('[OAuth] Successfully exchanged token for user:', claims.email);
+		} else {
+			console.error('[OAuth] Token exchange failed:', exchangeResponse.status, await exchangeResponse.text());
+		}
+	} catch (error) {
+		console.error('[OAuth] Token exchange error:', error);
+	}
+
 	// Complete the authorization
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
 		request: auth0AuthRequest.mcpAuthRequest,
@@ -256,9 +283,7 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 				accessTokenTTL: result.expires_in,
 				refreshToken: result.refresh_token,
 			},
-			// Store the MicroFn API token if available
-			// TODO: In production, this would query MicroFn API to get user's PAT based on Auth0 ID
-			microfnToken: c.env.MICROFN_API_TOKEN,
+			microfnToken: microfnPAT, // Store the MicroFn PAT
 		} as UserProps,
 	});
 
@@ -311,6 +336,33 @@ export async function tokenExchangeCallback(
 			throw new Error("Received invalid id_token from Auth0");
 		}
 
+		// Exchange the new Auth0 token for a fresh MicroFn PAT
+		let microfnPAT: string | undefined;
+		if (refreshTokenResponse.id_token) {
+			try {
+				const apiBaseUrl = env.API_BASE_URL || 'https://microfn.dev/api';
+				const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						idToken: refreshTokenResponse.id_token,
+					}),
+				});
+
+				if (exchangeResponse.ok) {
+					const data = await exchangeResponse.json() as { token: string };
+					microfnPAT = data.token;
+					console.log('[OAuth] Successfully refreshed MicroFn PAT for user');
+				} else {
+					console.error('[OAuth] Token exchange failed during refresh:', exchangeResponse.status);
+				}
+			} catch (error) {
+				console.error('[OAuth] Token exchange error during refresh:', error);
+			}
+		}
+
 		// Store the new token set and claims.
 		return {
 			newProps: {
@@ -322,6 +374,7 @@ export async function tokenExchangeCallback(
 					accessTokenTTL: refreshTokenResponse.expires_in,
 					refreshToken: refreshTokenResponse.refresh_token || auth0RefreshToken,
 				},
+				microfnToken: microfnPAT || options.props.microfnToken, // Keep old PAT if exchange fails
 			},
 			accessTokenTTL: refreshTokenResponse.expires_in,
 		};
