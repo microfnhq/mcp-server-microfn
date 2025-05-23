@@ -1,5 +1,5 @@
 // listFunctions.ts
-import { MyDurableObjectEnv } from "../index";
+import { Env } from "../index";
 import { MicroFnApiClient, Workspace } from "../microfnApiClient";
 
 /**
