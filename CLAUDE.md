@@ -233,3 +233,12 @@ const toolHandlers: Record<string, Function> = {
 - TypeScript configuration targets ES2022
 - Biome used for code formatting and linting
 - Direct JSON-RPC implementation for MCP protocol
+
+## Post-Task Requirements
+
+**IMPORTANT**: After completing any coding task, ALWAYS run:
+```bash
+just format
+```
+
+This ensures consistent code formatting across the entire codebase using Biome. Do not skip this step - it should be part of every task completion.

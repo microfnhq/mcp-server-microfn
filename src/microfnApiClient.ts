@@ -54,12 +54,12 @@ export class MicroFnApiClient {
 
 	constructor(apiToken: string, baseUrl?: string) {
 		this.apiToken = apiToken;
-		this.runBaseUrl = baseUrl?.replace('/api', '') || "https://microfn.dev";
+		this.runBaseUrl = baseUrl?.replace("/api", "") || "https://microfn.dev";
 		this.baseUrl = baseUrl || `${this.runBaseUrl}/api`;
-		console.log('[MicroFnApiClient] Initialized:', {
+		console.log("[MicroFnApiClient] Initialized:", {
 			baseUrl: this.baseUrl,
 			runBaseUrl: this.runBaseUrl,
-			hasToken: !!apiToken
+			hasToken: !!apiToken,
 		});
 	}
 
@@ -69,9 +69,9 @@ export class MicroFnApiClient {
 			"Content-Type": "application/json",
 			Accept: "application/json",
 		};
-		console.log('[MicroFnApiClient] Request headers:', {
+		console.log("[MicroFnApiClient] Request headers:", {
 			hasAuth: !!headers.Authorization,
-			tokenPrefix: this.apiToken ? this.apiToken.substring(0, 10) + '...' : 'none',
+			tokenPrefix: this.apiToken ? this.apiToken.substring(0, 10) + "..." : "none",
 		});
 		return headers;
 	}
@@ -80,16 +80,16 @@ export class MicroFnApiClient {
 
 	async listPackages(functionId: string): Promise<Array<{ name: string; version: string }>> {
 		const url = `${this.baseUrl}/workspaces/${functionId}/packages`;
-		console.log('[MicroFnApiClient] GET', url);
-		
+		console.log("[MicroFnApiClient] GET", url);
+
 		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
-		
-		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to list packages: ${res.statusText}`);
-		
+
 		const data = (await res.json()) as { packages?: Array<{ name: string; version: string }> };
 		return data.packages || [];
 	}
@@ -188,22 +188,22 @@ export class MicroFnApiClient {
 
 	async listWorkspaces(): Promise<Workspace[]> {
 		const url = `${this.baseUrl}/workspaces`;
-		console.log('[MicroFnApiClient] GET', url);
-		
+		console.log("[MicroFnApiClient] GET", url);
+
 		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
-		
-		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) {
 			const errorText = await res.text();
-			console.error('[MicroFnApiClient] Error response:', errorText);
+			console.error("[MicroFnApiClient] Error response:", errorText);
 			throw new Error(`Failed to list workspaces: ${res.statusText}`);
 		}
-		
+
 		const data = (await res.json()) as { workspaces?: Workspace[] };
-		console.log('[MicroFnApiClient] Found', data.workspaces?.length || 0, 'workspaces');
+		console.log("[MicroFnApiClient] Found", data.workspaces?.length || 0, "workspaces");
 		return data.workspaces || [];
 	}
 
@@ -211,22 +211,22 @@ export class MicroFnApiClient {
 
 	async getFunctionCode(functionId: string): Promise<FunctionCode> {
 		const url = `${this.baseUrl}/workspaces/${functionId}/code`;
-		console.log('[MicroFnApiClient] GET', url);
-		
+		console.log("[MicroFnApiClient] GET", url);
+
 		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
-		
-		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) {
 			const errorText = await res.text();
-			console.error('[MicroFnApiClient] Error response:', errorText);
+			console.error("[MicroFnApiClient] Error response:", errorText);
 			throw new Error(`Failed to get function code: ${res.statusText}`);
 		}
-		
+
 		const data = (await res.json()) as { code?: string };
-		console.log('[MicroFnApiClient] Got code, length:', data.code?.length || 0);
+		console.log("[MicroFnApiClient] Got code, length:", data.code?.length || 0);
 		return { code: data.code || "" };
 	}
 
@@ -244,26 +244,26 @@ export class MicroFnApiClient {
 
 	async executeFunction(functionId: string, inputData: any): Promise<ExecuteFunctionResult> {
 		const url = `${this.runBaseUrl}/run/${functionId}`;
-		console.log('[MicroFnApiClient] POST', url);
-		console.log('[MicroFnApiClient] Input data:', JSON.stringify(inputData));
-		
+		console.log("[MicroFnApiClient] POST", url);
+		console.log("[MicroFnApiClient] Input data:", JSON.stringify(inputData));
+
 		const res = await fetch(url, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify(inputData),
 		});
-		
-		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to execute function: ${res.statusText}`);
 
 		try {
 			const result = await res.json();
-			console.log('[MicroFnApiClient] Execution result:', result);
+			console.log("[MicroFnApiClient] Execution result:", result);
 			return { result };
 		} catch (error) {
 			// If JSON parsing fails, return the text response
 			const textResult = await res.text();
-			console.log('[MicroFnApiClient] Execution result (text):', textResult);
+			console.log("[MicroFnApiClient] Execution result (text):", textResult);
 			return { result: textResult };
 		}
 	}

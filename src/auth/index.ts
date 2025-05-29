@@ -169,7 +169,10 @@ export async function confirmConsent(
 	authorizationUrl.searchParams.set("redirect_uri", new URL("/callback", c.req.url).href);
 	authorizationUrl.searchParams.set("response_type", "code");
 	// Don't set audience since MicroFn doesn't use API-specific tokens
-	authorizationUrl.searchParams.set("scope", c.env.AUTH0_SCOPE || "openid email profile offline_access");
+	authorizationUrl.searchParams.set(
+		"scope",
+		c.env.AUTH0_SCOPE || "openid email profile offline_access",
+	);
 	authorizationUrl.searchParams.set("code_challenge", auth0AuthRequest.codeChallenge);
 	authorizationUrl.searchParams.set("code_challenge_method", "S256");
 	authorizationUrl.searchParams.set("nonce", auth0AuthRequest.nonce);
@@ -234,7 +237,7 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		requireIdToken: true,
 	});
 
-	console.log('[OAuth][callback] Auth0 token response:', {
+	console.log("[OAuth][callback] Auth0 token response:", {
 		hasIdToken: !!result.id_token,
 		hasAccessToken: !!result.access_token,
 		hasRefreshToken: !!result.refresh_token,
@@ -249,7 +252,7 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		return c.text("Received invalid id_token from Auth0", 400);
 	}
 
-	console.log('[OAuth][callback] ID token claims:', {
+	console.log("[OAuth][callback] ID token claims:", {
 		sub: claims.sub,
 		email: claims.email,
 		name: claims.name,
@@ -258,15 +261,15 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 	});
 
 	// Exchange Auth0 token for MicroFn PAT
-	console.log('[OAuth] Exchanging Auth0 token for MicroFn PAT');
+	console.log("[OAuth] Exchanging Auth0 token for MicroFn PAT");
 	let microfnPAT: string | undefined;
-	
+
 	try {
-		const apiBaseUrl = c.env.API_BASE_URL || 'https://microfn.dev/api';
+		const apiBaseUrl = c.env.API_BASE_URL || "https://microfn.dev/api";
 		const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
-			method: 'POST',
+			method: "POST",
 			headers: {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
 				idToken: result.id_token,
@@ -274,14 +277,18 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		});
 
 		if (exchangeResponse.ok) {
-			const data = await exchangeResponse.json() as { token: string };
+			const data = (await exchangeResponse.json()) as { token: string };
 			microfnPAT = data.token;
-			console.log('[OAuth] Successfully exchanged token for user:', claims.email);
+			console.log("[OAuth] Successfully exchanged token for user:", claims.email);
 		} else {
-			console.error('[OAuth] Token exchange failed:', exchangeResponse.status, await exchangeResponse.text());
+			console.error(
+				"[OAuth] Token exchange failed:",
+				exchangeResponse.status,
+				await exchangeResponse.text(),
+			);
 		}
 	} catch (error) {
-		console.error('[OAuth] Token exchange error:', error);
+		console.error("[OAuth] Token exchange error:", error);
 	}
 
 	// Complete the authorization
@@ -304,7 +311,7 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		} as UserProps,
 	});
 
-	console.log('[OAuth][callback] Authorization completed:', {
+	console.log("[OAuth][callback] Authorization completed:", {
 		redirectTo,
 		tokenSetTTL: result.expires_in || 3600,
 		tokenSetTTLInMs: (result.expires_in || 3600) * 1000,
@@ -327,15 +334,15 @@ export async function tokenExchangeCallback(
 	if (options.grantType === "authorization_code") {
 		const ttlInSeconds = options.props.tokenSet.accessTokenTTL;
 		const ttlInMs = (ttlInSeconds || 3600) * 1000; // Convert to milliseconds
-		
-		console.log('[OAuth][tokenExchange] Authorization code grant:', {
+
+		console.log("[OAuth][tokenExchange] Authorization code grant:", {
 			grantType: options.grantType,
 			originalTTL: ttlInSeconds,
 			convertedTTLMs: ttlInMs,
 			hasMicrofnToken: !!options.props.microfnToken,
 			userSub: options.props.claims?.sub,
 		});
-		
+
 		return {
 			newProps: {
 				...options.props,
@@ -345,13 +352,13 @@ export async function tokenExchangeCallback(
 	}
 
 	if (options.grantType === "refresh_token") {
-		console.log('[OAuth][tokenExchange] Refresh token grant started:', {
+		console.log("[OAuth][tokenExchange] Refresh token grant started:", {
 			grantType: options.grantType,
 			hasRefreshToken: !!options.props.tokenSet.refreshToken,
 			currentMicrofnToken: !!options.props.microfnToken,
 			userSub: options.props.claims?.sub,
 		});
-		
+
 		const auth0RefreshToken = options.props.tokenSet.refreshToken;
 		if (!auth0RefreshToken) {
 			throw new Error("No Auth0 refresh token found");
@@ -372,7 +379,7 @@ export async function tokenExchangeCallback(
 		);
 		const refreshTokenResponse = await oauth.processRefreshTokenResponse(as, client, response);
 
-		console.log('[OAuth][tokenExchange] Auth0 refresh response:', {
+		console.log("[OAuth][tokenExchange] Auth0 refresh response:", {
 			hasIdToken: !!refreshTokenResponse.id_token,
 			hasAccessToken: !!refreshTokenResponse.access_token,
 			hasRefreshToken: !!refreshTokenResponse.refresh_token,
@@ -387,7 +394,7 @@ export async function tokenExchangeCallback(
 			throw new Error("Received invalid id_token from Auth0");
 		}
 
-		console.log('[OAuth][tokenExchange] Refreshed token claims:', {
+		console.log("[OAuth][tokenExchange] Refreshed token claims:", {
 			sub: claims.sub,
 			email: claims.email,
 			name: claims.name,
@@ -397,11 +404,11 @@ export async function tokenExchangeCallback(
 		let microfnPAT: string | undefined;
 		if (refreshTokenResponse.id_token) {
 			try {
-				const apiBaseUrl = (env as any).API_BASE_URL || 'https://microfn.dev/api';
+				const apiBaseUrl = (env as any).API_BASE_URL || "https://microfn.dev/api";
 				const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
-					method: 'POST',
+					method: "POST",
 					headers: {
-						'Content-Type': 'application/json',
+						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
 						idToken: refreshTokenResponse.id_token,
@@ -409,28 +416,31 @@ export async function tokenExchangeCallback(
 				});
 
 				if (exchangeResponse.ok) {
-					const data = await exchangeResponse.json() as { token: string };
+					const data = (await exchangeResponse.json()) as { token: string };
 					microfnPAT = data.token;
-					console.log('[OAuth] Successfully refreshed MicroFn PAT for user');
+					console.log("[OAuth] Successfully refreshed MicroFn PAT for user");
 				} else {
-					console.error('[OAuth] Token exchange failed during refresh:', exchangeResponse.status);
+					console.error(
+						"[OAuth] Token exchange failed during refresh:",
+						exchangeResponse.status,
+					);
 				}
 			} catch (error) {
-				console.error('[OAuth] Token exchange error during refresh:', error);
+				console.error("[OAuth] Token exchange error during refresh:", error);
 			}
 		}
 
 		// Store the new token set and claims.
 		const ttlInSeconds = refreshTokenResponse.expires_in;
 		const ttlInMs = (ttlInSeconds || 3600) * 1000; // Convert to milliseconds
-		
-		console.log('[OAuth][tokenExchange] Refresh complete:', {
+
+		console.log("[OAuth][tokenExchange] Refresh complete:", {
 			originalTTL: ttlInSeconds,
 			convertedTTLMs: ttlInMs,
 			newMicrofnPAT: !!microfnPAT,
 			keptOldPAT: !microfnPAT && !!options.props.microfnToken,
 		});
-		
+
 		return {
 			newProps: {
 				...options.props,

@@ -1,14 +1,7 @@
 #!/usr/bin/env node
 import { Hono } from "hono";
-import OAuthProvider, {
-  type OAuthHelpers,
-} from "@cloudflare/workers-oauth-provider";
-import {
-  authorize,
-  callback,
-  confirmConsent,
-  tokenExchangeCallback,
-} from "./auth/index.js";
+import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
+import { authorize, callback, confirmConsent, tokenExchangeCallback } from "./auth/index.js";
 import { AuthenticatedMCP } from "./AuthenticatedMCP.js";
 import { createStreamableHTTPHandler } from "./StreamableHTTPHandler.js";
 import type { UserProps } from "./types.js";
@@ -18,19 +11,19 @@ export { AuthenticatedMCP };
 
 // Environment interface
 export interface Env {
-  MICROFN_API_TOKEN?: string;
-  AUTH0_DOMAIN?: string;
-  AUTH0_CLIENT_ID?: string;
-  AUTH0_CLIENT_SECRET?: string;
-  AUTH0_REDIRECT_URI?: string;
-  AUTH0_REDIRECT_URI_DEV?: string;
-  AUTH0_AUDIENCE?: string;
-  AUTH0_SCOPE?: string;
-  COOKIE_SECRET?: string;
-  API_BASE_URL?: string;
-  NODE_ENV?: string;
-  OAUTH_KV?: KVNamespace;
-  MCP_OBJECT?: DurableObjectNamespace;
+	MICROFN_API_TOKEN?: string;
+	AUTH0_DOMAIN?: string;
+	AUTH0_CLIENT_ID?: string;
+	AUTH0_CLIENT_SECRET?: string;
+	AUTH0_REDIRECT_URI?: string;
+	AUTH0_REDIRECT_URI_DEV?: string;
+	AUTH0_AUDIENCE?: string;
+	AUTH0_SCOPE?: string;
+	COOKIE_SECRET?: string;
+	API_BASE_URL?: string;
+	NODE_ENV?: string;
+	OAUTH_KV?: KVNamespace;
+	MCP_OBJECT?: DurableObjectNamespace;
 }
 
 // Initialize the Hono app with the routes for the OAuth Provider
@@ -43,24 +36,24 @@ app.get("/callback", callback);
 
 // Logout endpoint to clear session
 app.get("/logout", (c) => {
-  // Clear all OAuth-related cookies
-  const cookiesToClear = [
-    "oauth_session",
-    "oauth_state",
-    "oauth_code_verifier",
-    "auth_token",
-    "refresh_token",
-  ];
+	// Clear all OAuth-related cookies
+	const cookiesToClear = [
+		"oauth_session",
+		"oauth_state",
+		"oauth_code_verifier",
+		"auth_token",
+		"refresh_token",
+	];
 
-  cookiesToClear.forEach((cookieName) => {
-    c.header(
-      "Set-Cookie",
-      `${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`,
-    );
-  });
+	cookiesToClear.forEach((cookieName) => {
+		c.header(
+			"Set-Cookie",
+			`${cookieName}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`,
+		);
+	});
 
-  return c.html(
-    `
+	return c.html(
+		`
 		<!DOCTYPE html>
 		<html>
 		<head>
@@ -81,57 +74,57 @@ app.get("/logout", (c) => {
 		</body>
 		</html>
 	`,
-    200,
-  );
+		200,
+	);
 });
 
 // Health check endpoint
 app.get("/", (c) => {
-  return c.json({
-    name: "MicroFn MCP Server",
-    version: "1.0.0",
-    endpoints: {
-      mcp: {
-        sse: "/sse", // Legacy SSE endpoint
-        http: "/mcp", // New streamable-http endpoint
-      },
-      oauth: {
-        authorize: "/authorize",
-        callback: "/callback",
-        logout: "/logout",
-      },
-    },
-  });
+	return c.json({
+		name: "MicroFn MCP Server",
+		version: "1.0.0",
+		endpoints: {
+			mcp: {
+				sse: "/sse", // Legacy SSE endpoint
+				http: "/mcp", // New streamable-http endpoint
+			},
+			oauth: {
+				authorize: "/authorize",
+				callback: "/callback",
+				logout: "/logout",
+			},
+		},
+	});
 });
 
 // OAuth metadata endpoint for streamable-http clients
 app.get("/.well-known/oauth-authorization-server", (c) => {
-  const baseUrl = new URL(c.req.url).origin;
-  console.log("base URL", baseUrl);
-  return c.json({
-    issuer: baseUrl,
-    authorization_endpoint: `${baseUrl}/authorize`,
-    token_endpoint: `${baseUrl}/token`,
-    response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    code_challenge_methods_supported: ["S256"],
-    token_endpoint_auth_methods_supported: [
-      "client_secret_post",
-      "client_secret_basic",
-      "none",
-    ],
-    scopes_supported: ["openid", "email", "profile", "offline_access"],
-    claims_supported: ["sub", "email", "name"],
-  });
+	const baseUrl = new URL(c.req.url).origin;
+	console.log("base URL", baseUrl);
+	return c.json({
+		issuer: baseUrl,
+		authorization_endpoint: `${baseUrl}/authorize`,
+		token_endpoint: `${baseUrl}/token`,
+		response_types_supported: ["code"],
+		grant_types_supported: ["authorization_code", "refresh_token"],
+		code_challenge_methods_supported: ["S256"],
+		token_endpoint_auth_methods_supported: [
+			"client_secret_post",
+			"client_secret_basic",
+			"none",
+		],
+		scopes_supported: ["openid", "email", "profile", "offline_access"],
+		claims_supported: ["sub", "email", "name"],
+	});
 });
 
 // Export the OAuth provider with SSE mounted at /sse
 export default new OAuthProvider({
-  apiRoute: '/sse',
-  apiHandler: AuthenticatedMCP.mount('/sse') as any,
-  defaultHandler: app as any,
-  authorizeEndpoint: '/authorize',
-  tokenEndpoint: '/token',
-  clientRegistrationEndpoint: '/register',
-  tokenExchangeCallback,
+	apiRoute: "/sse",
+	apiHandler: AuthenticatedMCP.mount("/sse") as any,
+	defaultHandler: app as any,
+	authorizeEndpoint: "/authorize",
+	tokenEndpoint: "/token",
+	clientRegistrationEndpoint: "/register",
+	tokenExchangeCallback,
 });

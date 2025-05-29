@@ -1,7 +1,7 @@
 {
-  "github.copilot.chat.codeGeneration.instructions": [
-    {
-      "file": ".rules"
-    }
-  ]
+	"github.copilot.chat.codeGeneration.instructions": [
+		{
+			"file": ".rules"
+		}
+	]
 }

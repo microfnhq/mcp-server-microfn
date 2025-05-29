@@ -1,50 +1,48 @@
 {
-  "name": "@microfnhq/mcp-server-microfn",
-  "version": "1.0.0",
-  "description": "MCP server for the MicroFn platform - manage serverless functions via Model Context Protocol",
-  "license": "AGPL-3.0-only",
-  "author": "David Mohl <git@d.sh>",
-  "homepage": "https://github.com/microfnhq/mcp-server-microfn",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/microfnhq/mcp-server-microfn.git"
-  },
-  "bugs": "https://github.com/microfnhq/mcp-server-microfn/issues",
-  "type": "module",
-  "bin": {
-    "mcp-server-microfn": "dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc && shx chmod +x dist/*.js",
-    "prepare": "npm run build",
-    "watch": "tsc --watch",
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "format": "biome format --write",
-    "lint:fix": "biome lint --fix",
-    "start": "node dist/index.js",
-    "cf-typegen": "wrangler types",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.0.5",
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "agents": "^0.0.92",
-    "hono": "^4.7.10",
-    "jose": "^6.0.11",
-    "oauth4webapi": "^3.5.1",
-    "workers-mcp": "^0.0.13",
-    "zod": "^3.25.16"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/node": "^22.15.21",
-    "shx": "^0.3.4",
-    "typescript": "^5.8.3",
-    "wrangler": "^4.17.0"
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+	"name": "@microfnhq/mcp-server-microfn",
+	"version": "1.0.0",
+	"description": "MCP server for the MicroFn platform - manage serverless functions via Model Context Protocol",
+	"license": "AGPL-3.0-only",
+	"author": "David Mohl <git@d.sh>",
+	"homepage": "https://github.com/microfnhq/mcp-server-microfn",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/microfnhq/mcp-server-microfn.git"
+	},
+	"bugs": "https://github.com/microfnhq/mcp-server-microfn/issues",
+	"type": "module",
+	"bin": {
+		"mcp-server-microfn": "dist/index.js"
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsc && shx chmod +x dist/*.js",
+		"prepare": "npm run build",
+		"watch": "tsc --watch",
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"format": "biome format --write",
+		"lint:fix": "biome lint --fix",
+		"start": "node dist/index.js",
+		"cf-typegen": "wrangler types",
+		"type-check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@cloudflare/workers-oauth-provider": "^0.0.5",
+		"@modelcontextprotocol/sdk": "^1.12.0",
+		"agents": "^0.0.92",
+		"hono": "^4.7.10",
+		"jose": "^6.0.11",
+		"oauth4webapi": "^3.5.1",
+		"workers-mcp": "^0.0.13",
+		"zod": "^3.25.16"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/node": "^22.15.21",
+		"shx": "^0.3.4",
+		"typescript": "^5.8.3",
+		"wrangler": "^4.17.0"
+	},
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
