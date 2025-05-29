@@ -10,6 +10,7 @@ import { handleCreateFunction } from "./tools/createFunction.js";
 import { handleCreateSecret } from "./tools/createSecret.js";
 import { handleDeleteSecret } from "./tools/deleteSecret.js";
 import { handleExecuteFunction } from "./tools/executeFunction.js";
+import { handleGenerateFunction } from "./tools/generateFunction.js";
 import { handleGetFunctionCode } from "./tools/getFunctionCode.js";
 import { handleGetSecrets } from "./tools/getSecrets.js";
 import { handleInstallPackage } from "./tools/installPackage.js";
@@ -17,6 +18,7 @@ import { handleListFunctions } from "./tools/listFunctions.js";
 import { handleListPackages } from "./tools/listPackages.js";
 import { handleRemovePackage } from "./tools/removePackage.js";
 import { handleRenameFunction } from "./tools/renameFunction.js";
+import { handleRewriteFunction } from "./tools/rewriteFunction.js";
 import { handleUpdateFunctionCode } from "./tools/updateFunctionCode.js";
 import { handleUpdatePackage } from "./tools/updatePackage.js";
 import { handleUpdatePackageLayer } from "./tools/updatePackageLayer.js";
@@ -557,6 +559,58 @@ export function createMcpServer(
 				const result = await handleDeleteSecret(
 					apiToken,
 					{ workspaceId, secretId },
+					env,
+					{} as ExecutionContext,
+				);
+				return { content: [{ type: "text", text: JSON.stringify(result) }] };
+			} catch (error: any) {
+				return {
+					content: [{ type: "text", text: `Error: ${error.message}` }],
+				};
+			}
+		},
+	);
+
+	// Generate function
+	server.tool(
+		"generateFunction",
+		"Generate function code variations using AI based on a text prompt. Returns multiple code variations.",
+		{
+			prompt: z.string().min(1).max(500).describe("The prompt describing what the function should do"),
+		},
+		async ({ prompt }) => {
+			console.log("[mcpServerFactory] generateFunction called with prompt:", prompt);
+
+			try {
+				const result = await handleGenerateFunction(
+					apiToken,
+					{ prompt },
+					env,
+					{} as ExecutionContext,
+				);
+				return { content: [{ type: "text", text: JSON.stringify(result) }] };
+			} catch (error: any) {
+				return {
+					content: [{ type: "text", text: `Error: ${error.message}` }],
+				};
+			}
+		},
+	);
+
+	// Rewrite function
+	server.tool(
+		"rewriteFunction",
+		"Rewrite existing JavaScript code to be compatible with the MicroFn platform using AI. Converts environment variables to @microfn/secret, file storage to @microfn/kv, etc.",
+		{
+			code: z.string().min(1).describe("The JavaScript code to rewrite for MicroFn platform"),
+		},
+		async ({ code }) => {
+			console.log("[mcpServerFactory] rewriteFunction called with code length:", code.length);
+
+			try {
+				const result = await handleRewriteFunction(
+					apiToken,
+					{ code },
 					env,
 					{} as ExecutionContext,
 				);

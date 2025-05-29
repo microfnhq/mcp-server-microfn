@@ -29,6 +29,22 @@ export interface ExecuteFunctionResult {
 	result: any;
 }
 
+export interface GenerateFunctionParams {
+	prompt: string;
+}
+
+export interface GenerateFunctionResult {
+	variations: Array<{ code: string }>;
+}
+
+export interface RewriteFunctionParams {
+	code: string;
+}
+
+export interface RewriteFunctionResult {
+	code: string;
+}
+
 export interface CreateWorkspaceParams {
 	name: string;
 	code: string;
@@ -323,5 +339,53 @@ export class MicroFnApiClient {
 			headers: this.getHeaders(),
 		});
 		if (!res.ok) throw new Error(`Failed to delete secret: ${res.statusText}`);
+	}
+
+	// Function Generation
+
+	async generateFunction(params: GenerateFunctionParams): Promise<GenerateFunctionResult> {
+		const url = `${this.baseUrl}/generate/generate`;
+		console.log("[MicroFnApiClient] POST", url);
+		console.log("[MicroFnApiClient] Prompt:", params.prompt);
+
+		const res = await fetch(url, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify({ prompt: params.prompt }),
+		});
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
+		if (!res.ok) {
+			const errorText = await res.text();
+			console.error("[MicroFnApiClient] Error response:", errorText);
+			throw new Error(`Failed to generate function: ${res.statusText}`);
+		}
+
+		const data = (await res.json()) as GenerateFunctionResult;
+		console.log("[MicroFnApiClient] Generated", data.variations?.length || 0, "variations");
+		return data;
+	}
+
+	async rewriteFunction(params: RewriteFunctionParams): Promise<RewriteFunctionResult> {
+		const url = `${this.baseUrl}/generate/rewrite`;
+		console.log("[MicroFnApiClient] POST", url);
+		console.log("[MicroFnApiClient] Code length:", params.code.length);
+
+		const res = await fetch(url, {
+			method: "POST",
+			headers: this.getHeaders(),
+			body: JSON.stringify({ code: params.code }),
+		});
+
+		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
+		if (!res.ok) {
+			const errorText = await res.text();
+			console.error("[MicroFnApiClient] Error response:", errorText);
+			throw new Error(`Failed to rewrite function: ${res.statusText}`);
+		}
+
+		const data = (await res.json()) as RewriteFunctionResult;
+		console.log("[MicroFnApiClient] Rewritten code length:", data.code?.length || 0);
+		return data;
 	}
 }
