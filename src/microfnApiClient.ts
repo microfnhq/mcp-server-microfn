@@ -256,13 +256,17 @@ export class MicroFnApiClient {
 		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to execute function: ${res.statusText}`);
 
+		// Read the response body once as text to avoid "Body has already been used" error
+		const textResult = await res.text();
+		console.log("[MicroFnApiClient] Raw response:", textResult);
+
 		try {
-			const result = await res.json();
-			console.log("[MicroFnApiClient] Execution result:", result);
+			// Try to parse as JSON first
+			const result = JSON.parse(textResult);
+			console.log("[MicroFnApiClient] Execution result (JSON):", result);
 			return { result };
 		} catch (error) {
 			// If JSON parsing fails, return the text response
-			const textResult = await res.text();
 			console.log("[MicroFnApiClient] Execution result (text):", textResult);
 			return { result: textResult };
 		}
