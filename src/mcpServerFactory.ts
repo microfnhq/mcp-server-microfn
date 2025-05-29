@@ -190,13 +190,13 @@ export function createMcpServer(
 	// Create function
 	server.tool(
 		"createFunction",
-		"Create a new MicroFn workspace/function with TypeScript code. The code must contain an exported 'main' function that serves as the entry point. Input: 'name' (string) - the function name, 'code' (string) - TypeScript code with 'export async function main(params) { ... }' or 'export function main(params) { ... }'. The main function can take parameters and return JSON data or strings. Use @microfn/secret for environment variables, @microfn/kv for data storage. Output: Returns the created workspace object with id, name, and metadata.",
+		"Create a new MicroFn workspace/function with TypeScript code. The code must export either: 1) A 'main' function as the entry point, OR 2) Any named function (which will be auto-wrapped with a main function). Examples: 'export async function main() { return \"hello\" }', 'export async function sayHello(name) { return \"hello \" + name }' (auto-wrapped), 'export async function main() { const btc = await fetch(\"...\"); return btc.json() }'. IMPORTANT: Import @microfn/* modules as defaults: 'import kv from \"@microfn/kv\"' NOT 'import { kv } from \"@microfn/kv\"'. Common patterns: Use @microfn/secret for env vars, @microfn/kv for persistent storage (e.g., counters, cache), fetch() for HTTP requests. If unsure about syntax, use the 'rewriteFunction' tool to transform your code. Input: 'name' (string) - function name, 'code' (string) - TypeScript code. Output: Returns the created workspace object with id, name, and metadata.",
 		{
 			name: z.string().describe("The name for the new function/workspace"),
 			code: z
 				.string()
 				.describe(
-					"TypeScript code that must include 'export async function main(params) { ... }' or 'export function main(params) { ... }' as the entry point. Use @microfn/secret for env vars, @microfn/kv for storage.",
+					"TypeScript code with exported function(s). Can be: 1) 'export async function main() {...}' for direct entry point, 2) 'export async function anyName() {...}' which auto-wraps with main(), 3) Multiple functions where main() calls others. Examples: Simple API call: 'export async function main() { const res = await fetch(\"https://api.example.com\"); return res.json(); }'. With KV storage: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"count\")) || 0; await kv.set(\"count\", count + 1); return count + 1; }'. ALWAYS use default imports for @microfn/* modules. If unsure, use 'rewriteFunction' tool.",
 				),
 		},
 		async ({ name, code }) => {
@@ -296,7 +296,7 @@ export function createMcpServer(
 	// Update function code
 	server.tool(
 		"updateFunctionCode",
-		"Update the source code of a function. Requires functionId and code parameters.",
+		"Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Examples: Bitcoin price fetcher: 'export async function main() { const res = await fetch(\"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd\"); return { price_usd: (await res.json()).bitcoin.usd }; }'. With KV counter: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"visits\")) || 0; await kv.set(\"visits\", count + 1); return { visits: count + 1 }; }'. IMPORTANT: Always use default imports for @microfn/* modules. If converting existing code, use 'rewriteFunction' tool first. Requires functionId and code parameters.",
 		{
 			functionId: z
 				.string()
@@ -304,7 +304,11 @@ export function createMcpServer(
 				.describe(
 					'The UUID of the function/workspace to update (e.g., "12345678-1234-5678-1234-567812345678")',
 				),
-			code: z.string().describe("The new source code for the function"),
+			code: z
+				.string()
+				.describe(
+					"The new TypeScript code. Can export: 1) 'export async function main() {...}' directly, OR 2) Any named exported function (gets auto-wrapped). Examples: Weather API: 'export async function getWeather() { const res = await fetch(\"https://wttr.in/Tokyo?format=3\"); return res.text(); }'. Timer with KV: 'import kv from \"@microfn/kv\"; export async function main() { const val = (await kv.get<number>(\"timer\")) || 0; await kv.set(\"timer\", val + 1); return val + 1; }'. ALWAYS use default imports for @microfn/* modules. If unsure, use 'rewriteFunction' tool first.",
+				),
 		},
 		async ({ functionId, code }) => {
 			console.log("[mcpServerFactory] updateFunctionCode called:", {
