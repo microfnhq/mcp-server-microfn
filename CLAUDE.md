@@ -73,10 +73,39 @@ Tools are organized in two parts:
    - Uses `MicroFnApiClient` for API calls
    - Always takes `token` as first parameter
 
-2. **Tool Registration** (`src/index.ts` in `createMcpTools()`)
+2. **Tool Registration** (`src/mcpServerFactory.ts` in `createMcpServer()`)
    - Defines the MCP tool schema and description
    - Maps input parameters to handler function
    - Handles errors and response formatting
+   
+### CRITICAL: Tool Parameter Schema Format
+
+When using the MCP SDK with Cloudflare's `agents` package (McpAgent), you MUST use Zod schemas for tool parameters, NOT plain object definitions:
+
+**❌ WRONG - This will cause parameters to be undefined:**
+```typescript
+server.tool('getFunctionCode', 'Get function code', {
+  functionId: { 
+    type: 'string',
+    description: 'The function ID'
+  }
+}, async (args) => {
+  // args will be {signal: {}, requestId: N} instead of the actual params!
+});
+```
+
+**✅ CORRECT - Use Zod schemas:**
+```typescript
+import { z } from 'zod';
+
+server.tool('getFunctionCode', 'Get function code', {
+  functionId: z.string().uuid().describe('The function ID')
+}, async ({ functionId }) => {
+  // functionId will be properly extracted and typed
+});
+```
+
+The McpAgent wrapper expects Zod schemas to properly parse JSON-RPC parameters. Without Zod, parameters won't be extracted correctly from the request.
 
 ### Step-by-Step Process
 
@@ -124,39 +153,41 @@ async someApiMethod(functionId: string): Promise<SomeResult> {
 }
 ```
 
-3. **Import Handler** in `src/index.ts`:
+3. **Import Handler** in `src/mcpServerFactory.ts`:
 ```typescript
 import { handleNewTool } from "./tools/newTool";
 ```
 
-4. **Register Tool** in `createMcpTools()` function:
+4. **Register Tool** in `createMcpServer()` function:
 ```typescript
-newTool: {
-  description: "Description of what this tool does",
-  inputSchema: {
-    type: "object",
-    properties: {
-      functionId: { type: "string" },
-      // match your handler's interface exactly
-    },
-    required: ["functionId"],
+// Import Zod at the top of the file
+import { z } from 'zod';
+
+// In createMcpServer function:
+server.tool(
+  'newTool',
+  'Description of what this tool does',
+  {
+    functionId: z.string().uuid().describe('The UUID of the function'),
+    optionalParam: z.string().optional().describe('Optional parameter'),
+    // match your handler's interface exactly
   },
-  handler: async (args) => {
+  async ({ functionId, optionalParam }) => {
     try {
       const result = await handleNewTool(
         apiToken,
-        args,
-        {},
+        { functionId, optionalParam },
+        env,
         {} as ExecutionContext,
       );
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     } catch (error: any) {
       return {
-        content: [{ type: "text", text: `Error: ${error.message}` }],
+        content: [{ type: 'text', text: `Error: ${error.message}` }],
       };
     }
-  },
-},
+  }
+);
 ```
 
 5. **Add to Legacy Tool Endpoint** (optional, in `/tool` handler):
