@@ -85,7 +85,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
   });
 
   // List functions
-  server.tool('list_functions', 'List all available MicroFn workspaces/functions. Returns an array of workspaces where each workspace.id can be used as functionId parameter in other tools.', {}, async (extra: any) => {
+  server.tool('list_functions', 'List all available MicroFn workspaces/functions. Returns an array of workspaces where each workspace.id (a UUID like "12345678-1234-5678-1234-567812345678") can be used as functionId parameter in other tools.', {}, async (extra: any) => {
     console.log('[mcpServerFactory] list_functions called with extra:', extra);
     console.log('[mcpServerFactory] list_functions details:', {
       hasApiToken: !!apiToken,
@@ -117,7 +117,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'checkDeployment',
     'Check the deployment status of a function. Requires functionId parameter.',
     {
-      functionId: z.string().describe('The ID of the function/workspace to check deployment status')
+      functionId: z.string().uuid().describe('The UUID of the function/workspace to check deployment status (e.g., "12345678-1234-5678-1234-567812345678")')
     },
     async ({ functionId }) => {
       console.log('[mcpServerFactory] checkDeployment called with functionId:', functionId);
@@ -168,7 +168,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'executeFunction',
     'Execute a function with given input. Requires functionId and optional inputData parameters.',
     {
-      functionId: z.string().describe('The ID of the function/workspace to execute'),
+      functionId: z.string().uuid().describe('The UUID of the function/workspace to execute (e.g., "12345678-1234-5678-1234-567812345678")'),
       inputData: z.object({}).passthrough().optional().describe('Optional input data to pass to the function')
     },
     async ({ functionId, inputData }) => {
@@ -195,7 +195,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'getFunctionCode',
     'Get the source code of a function. Requires functionId parameter (NOT workspace).',
     {
-      functionId: z.string().describe('The ID of the function/workspace to retrieve code from. This should be the exact function ID, not a workspace name.')
+      functionId: z.string().uuid().describe('The UUID of the function/workspace to retrieve code from (e.g., "12345678-1234-5678-1234-567812345678"). This must be a UUID, not a workspace name or slug.')
     },
     async ({ functionId }) => {
       console.log('[mcpServerFactory] getFunctionCode called with functionId:', functionId);
@@ -226,7 +226,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'updateFunctionCode',
     'Update the source code of a function. Requires functionId and code parameters.',
     {
-      functionId: z.string().describe('The ID of the function/workspace to update'),
+      functionId: z.string().uuid().describe('The UUID of the function/workspace to update (e.g., "12345678-1234-5678-1234-567812345678")'),
       code: z.string().describe('The new source code for the function')
     },
     async ({ functionId, code }) => {
@@ -253,7 +253,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'listPackages',
     'Lists all npm packages installed for a function. Requires functionId parameter.',
     {
-      functionId: z.string().describe('The ID of the function/workspace to list packages for')
+      functionId: z.string().uuid().describe('The UUID of the function/workspace to list packages for (e.g., "12345678-1234-5678-1234-567812345678")')
     },
     async ({ functionId }) => {
       console.log('[mcpServerFactory] listPackages called with functionId:', functionId);
@@ -405,7 +405,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'getSecrets',
     'Retrieves all secrets for the specified function (workspace)',
     {
-      workspaceId: z.string(),
+      workspaceId: z.string().uuid().describe('The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")'),
     },
     async ({ workspaceId }) => {
       try {
@@ -429,7 +429,7 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'createSecret',
     'Creates a new secret for the specified function (workspace). Secrets cannot be overwritten - delete first if key exists.',
     {
-      workspaceId: z.string(),
+      workspaceId: z.string().uuid().describe('The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")'),
       key: z.string(),
       value: z.string(),
     },
@@ -455,8 +455,8 @@ export function createMcpServer(apiToken: string, props: UserProps, env: Env): M
     'deleteSecret',
     'Deletes a secret from the specified function (workspace)',
     {
-      workspaceId: z.string(),
-      secretId: z.string(),
+      workspaceId: z.string().uuid().describe('The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")'),
+      secretId: z.string().describe('The ID of the secret to delete'),
     },
     async ({ workspaceId, secretId }) => {
       try {
