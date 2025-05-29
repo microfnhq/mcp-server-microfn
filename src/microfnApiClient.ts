@@ -64,11 +64,16 @@ export class MicroFnApiClient {
 	}
 
 	private getHeaders(): HeadersInit {
-		return {
+		const headers = {
 			Authorization: `Bearer ${this.apiToken}`,
 			"Content-Type": "application/json",
 			Accept: "application/json",
 		};
+		console.log('[MicroFnApiClient] Request headers:', {
+			hasAuth: !!headers.Authorization,
+			tokenPrefix: this.apiToken ? this.apiToken.substring(0, 10) + '...' : 'none',
+		});
+		return headers;
 	}
 
 	// --- Package Management ---
@@ -205,12 +210,23 @@ export class MicroFnApiClient {
 	// Function Code
 
 	async getFunctionCode(functionId: string): Promise<FunctionCode> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/code`, {
+		const url = `${this.baseUrl}/workspaces/${functionId}/code`;
+		console.log('[MicroFnApiClient] GET', url);
+		
+		const res = await fetch(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
-		if (!res.ok) throw new Error(`Failed to get function code: ${res.statusText}`);
+		
+		console.log('[MicroFnApiClient] Response:', res.status, res.statusText);
+		if (!res.ok) {
+			const errorText = await res.text();
+			console.error('[MicroFnApiClient] Error response:', errorText);
+			throw new Error(`Failed to get function code: ${res.statusText}`);
+		}
+		
 		const data = (await res.json()) as { code?: string };
+		console.log('[MicroFnApiClient] Got code, length:', data.code?.length || 0);
 		return { code: data.code || "" };
 	}
 

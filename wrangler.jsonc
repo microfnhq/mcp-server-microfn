@@ -9,7 +9,7 @@
   "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
 
   /**
@@ -18,16 +18,16 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["AuthenticatedMCP"]
-    }
+      "new_sqlite_classes": ["AuthenticatedMCP"],
+    },
   ],
   "durable_objects": {
     "bindings": [
       {
         "name": "MCP_OBJECT",
-        "class_name": "AuthenticatedMCP"
-      }
-    ]
+        "class_name": "AuthenticatedMCP",
+      },
+    ],
   },
 
   /**
@@ -36,8 +36,8 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      "id": "d5a49e5b1bea43fc9c5f9a8106f83a7f"
-    }
+      "id": "d5a49e5b1bea43fc9c5f9a8106f83a7f",
+    },
   ],
 
   /**
@@ -64,7 +64,7 @@
     "AUTH0_REDIRECT_URI_DEV": "http://localhost:8787/callback",
     "API_BASE_URL": "https://microfn.dev/api",
     "AUTH0_SCOPE": "openid email profile offline_access",
-    "NODE_ENV": "development"
+    "NODE_ENV": "development",
   },
   /**
    * Note: Use secrets to store sensitive data.
@@ -75,7 +75,7 @@
    * Development configuration
    */
   "dev": {
-    "port": 8787
+    "port": 8787,
   },
 
   /**
@@ -93,5 +93,5 @@
   /**
    * Custom Routes
    */
-  "routes": ["mcp.microfn.dev/*"]
+  "routes": ["mcp.microfn.dev/*"],
 }

@@ -25,14 +25,18 @@ npm run lint:fix
 ## Architecture
 
 **Core Components:**
-- `src/index.ts` - Main MCP server (`MyMCP` class) extending `McpAgent`
+- `src/index.ts` - Main server setup with OAuth provider and routing
+- `src/AuthenticatedMCP.ts` - Durable Object for SSE transport
+- `src/StreamableHTTPHandler.ts` - Handler for HTTP transport (stateless)
+- `src/mcpServerFactory.ts` - Shared MCP server configuration
 - `src/microfnApiClient.ts` - HTTP client for MicroFn REST API
-- `src/tools/` - Individual tool implementations (10 tools total)
+- `src/tools/` - Individual tool implementations (15 tools total)
 
 **Endpoints:**
-- `/sse` - Server-Sent Events endpoint for MCP over SSE
-- `/mcp` - Standard MCP protocol endpoint  
-- `/tool` - Direct tool execution endpoint
+- `/sse` - Server-Sent Events endpoint for MCP over SSE (legacy)
+- `/mcp` - HTTP endpoint for streamable-http transport (recommended)
+- `/authorize`, `/callback` - OAuth authentication flow
+- `/logout` - Session cleanup
 
 **Tool Architecture:**
 Each tool in `src/tools/` follows a consistent pattern:
