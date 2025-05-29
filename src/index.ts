@@ -24,6 +24,8 @@ export interface Env {
 	NODE_ENV?: string;
 	OAUTH_KV?: KVNamespace;
 	MCP_OBJECT?: DurableObjectNamespace;
+	MCP_REQUEST_TIMEOUT_MS?: number;
+	FUNCTION_EXECUTION_TIMEOUT_MS?: number;
 }
 
 // Initialize the Hono app with the routes for the OAuth Provider

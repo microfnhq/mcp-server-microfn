@@ -20,20 +20,57 @@ class SimpleJSONRPCTransport {
 	private messageHandler?: (message: JSONRPCMessage) => void;
 	private responsePromise?: Promise<JSONRPCResponse>;
 	private responseResolver?: (response: JSONRPCResponse) => void;
+	private env?: Env;
+	private connectionState: "disconnected" | "connecting" | "connected" | "error" = "disconnected";
+	private startTime?: number;
 
 	onmessage?: (message: JSONRPCMessage) => void;
 	onerror?: (error: Error) => void;
 	onclose?: () => void;
 
+	constructor(env?: Env) {
+		this.env = env;
+	}
+
+	private getTimeout(): number {
+		// Default to 25 seconds to stay under Cloudflare's 30s limit
+		// Can be configured via environment variable
+		return this.env?.MCP_REQUEST_TIMEOUT_MS || 25000;
+	}
+
+	getConnectionState(): string {
+		return this.connectionState;
+	}
+
+	getConnectionDuration(): number {
+		return this.startTime ? Date.now() - this.startTime : 0;
+	}
+
 	async start(): Promise<void> {
-		// No-op for simple transport
+		this.connectionState = "connecting";
+		this.startTime = Date.now();
+		// Simulate connection establishment
+		this.connectionState = "connected";
+		console.log("[Transport] Connection established");
 	}
 
 	async close(): Promise<void> {
+		if (this.connectionState === "connected") {
+			this.connectionState = "disconnected";
+			console.log(`[Transport] Connection closed after ${this.getConnectionDuration()}ms`);
+		}
 		this.onclose?.();
 	}
 
 	async send(message: JSONRPCMessage): Promise<void> {
+		if (this.connectionState !== "connected") {
+			const error = new Error(
+				`Cannot send message - connection state: ${this.connectionState}`,
+			);
+			this.onerror?.(error);
+			return;
+		}
+
 		// Store the response for the client
 		if ("id" in message && message.id !== null) {
 			if (this.responseResolver) {
@@ -46,21 +83,55 @@ class SimpleJSONRPCTransport {
 	 * Handle an incoming request and return the response
 	 */
 	async handleRequest(request: JSONRPCRequest): Promise<JSONRPCResponse | null> {
+		if (this.connectionState !== "connected") {
+			return {
+				jsonrpc: "2.0",
+				error: {
+					code: -32000,
+					message: `Connection not established - current state: ${this.connectionState}. Retry the request to reconnect.`,
+					data: {
+						reconnectable: true,
+						connectionState: this.connectionState,
+						retryAfterMs: 1000,
+					},
+				},
+				id: request.id ?? null,
+			};
+		}
+
 		return new Promise((resolve) => {
 			this.responseResolver = resolve;
 			this.onmessage?.(request);
 
-			// Set a timeout to prevent hanging
-			setTimeout(() => {
+			// Set a configurable timeout to prevent hanging
+			const timeoutMs = this.getTimeout();
+			const timeoutHandler = setTimeout(() => {
+				this.connectionState = "error";
 				resolve({
 					jsonrpc: "2.0",
 					error: {
-						code: -32603,
-						message: "Request timeout",
+						code: -32000,
+						message:
+							"Connection closed - request timeout. To reconnect, retry this exact same request to the same MCP endpoint. Wait 2-3 seconds before retrying.",
+						data: {
+							reconnectable: true,
+							retryAfterMs: 2000,
+							instruction:
+								"Retry the same JSON-RPC request to reconnect automatically",
+							connectionDuration: this.getConnectionDuration(),
+							timeoutMs: timeoutMs,
+						},
 					},
 					id: request.id ?? null,
 				});
-			}, 30000); // 30 second timeout
+			}, timeoutMs);
+
+			// Clear timeout if response comes before timeout
+			const originalResolver = this.responseResolver;
+			this.responseResolver = (response: JSONRPCResponse) => {
+				clearTimeout(timeoutHandler);
+				originalResolver?.(response);
+			};
 		});
 	}
 }
@@ -202,7 +273,10 @@ export class StreamableHTTPHandler {
 			console.log("[StreamableHTTP] Full request body:", JSON.stringify(body));
 
 			// Create transport
-			const transport = new SimpleJSONRPCTransport();
+			const transport = new SimpleJSONRPCTransport(this.env);
+
+			// Start transport (establish connection state)
+			await transport.start();
 
 			// Create server instance for this request
 			const server = createMcpServer(apiToken, this.userProps, this.env);
@@ -229,6 +303,42 @@ export class StreamableHTTPHandler {
 			}
 		} catch (error) {
 			console.error("[StreamableHTTP] Error handling request:", error);
+
+			// Check if this is a connection-related error
+			const isConnectionError =
+				error instanceof Error &&
+				(error.message.includes("timeout") ||
+					error.message.includes("connection") ||
+					error.message.includes("closed") ||
+					error.message.includes("aborted"));
+
+			if (isConnectionError) {
+				return new Response(
+					JSON.stringify({
+						jsonrpc: "2.0",
+						error: {
+							code: -32000,
+							message: `Connection error: ${error instanceof Error ? error.message : "Unknown connection error"}. To reconnect, retry this exact same request to the same MCP endpoint.`,
+							data: {
+								reconnectable: true,
+								retryAfterMs: 2000,
+								instruction:
+									"Retry the same JSON-RPC request to reconnect automatically",
+								errorType: "connection",
+							},
+						},
+						id: null,
+					}),
+					{
+						status: 200, // Use 200 for JSON-RPC errors
+						headers: {
+							"Content-Type": "application/json",
+						},
+					},
+				);
+			}
+
+			// For other errors, return a generic internal error
 			return new Response(
 				JSON.stringify({
 					jsonrpc: "2.0",
