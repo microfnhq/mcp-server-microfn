@@ -190,10 +190,14 @@ export function createMcpServer(
 	// Create function
 	server.tool(
 		"createFunction",
-		"Create a new function",
+		"Create a new MicroFn workspace/function with TypeScript code. The code must contain an exported 'main' function that serves as the entry point. Input: 'name' (string) - the function name, 'code' (string) - TypeScript code with 'export async function main(params) { ... }' or 'export function main(params) { ... }'. The main function can take parameters and return JSON data or strings. Use @microfn/secret for environment variables, @microfn/kv for data storage. Output: Returns the created workspace object with id, name, and metadata.",
 		{
-			name: z.string(),
-			code: z.string(),
+			name: z.string().describe("The name for the new function/workspace"),
+			code: z
+				.string()
+				.describe(
+					"TypeScript code that must include 'export async function main(params) { ... }' or 'export function main(params) { ... }' as the entry point. Use @microfn/secret for env vars, @microfn/kv for storage.",
+				),
 		},
 		async ({ name, code }) => {
 			try {
@@ -574,9 +578,15 @@ export function createMcpServer(
 	// Generate function
 	server.tool(
 		"generateFunction",
-		"Generate function code variations using AI based on a text prompt. Returns multiple code variations.",
+		"Generate multiple TypeScript function code variations using AI based on a natural language prompt. Input: 'prompt' (string, 1-500 chars) - describe what you want the function to do. Examples: 'a function that fetches weather data for a city', 'calculate fibonacci numbers', 'send an email notification', 'process CSV data and return statistics', 'convert markdown to HTML'. Output: Returns an object with 'variations' array containing multiple generated code snippets, each with a 'code' field containing complete TypeScript functions ready for MicroFn (with proper exports, @microfn modules, etc.).",
 		{
-			prompt: z.string().min(1).max(500).describe("The prompt describing what the function should do"),
+			prompt: z
+				.string()
+				.min(1)
+				.max(500)
+				.describe(
+					"Natural language description of what the function should do. Examples: 'fetch weather for a city', 'calculate compound interest', 'resize an image', 'parse JSON and extract specific fields'",
+				),
 		},
 		async ({ prompt }) => {
 			console.log("[mcpServerFactory] generateFunction called with prompt:", prompt);
@@ -600,9 +610,14 @@ export function createMcpServer(
 	// Rewrite function
 	server.tool(
 		"rewriteFunction",
-		"Rewrite existing JavaScript code to be compatible with the MicroFn platform using AI. Converts environment variables to @microfn/secret, file storage to @microfn/kv, etc.",
+		"Transform existing JavaScript/Node.js code to be fully compatible with the MicroFn serverless platform using AI. Input: 'code' (string) - any JavaScript/Node.js code that needs to be converted. This tool automatically converts: process.env.* → @microfn/secret.getRequired(), file system operations → @microfn/kv storage, module.exports → export function main(), require() → import statements, localStorage/global variables → @microfn/kv persistence, and ensures proper TypeScript formatting with exported main() function. Perfect for migrating existing scripts, functions, or code snippets to run on MicroFn. Output: Returns an object with 'code' field containing the fully rewritten TypeScript code ready to use in MicroFn.",
 		{
-			code: z.string().min(1).describe("The JavaScript code to rewrite for MicroFn platform"),
+			code: z
+				.string()
+				.min(1)
+				.describe(
+					"JavaScript/Node.js code to convert to MicroFn format. Can be any JS code - functions, scripts, modules, etc. Will be transformed to use @microfn modules and proper export structure.",
+				),
 		},
 		async ({ code }) => {
 			console.log("[mcpServerFactory] rewriteFunction called with code length:", code.length);

@@ -106,7 +106,9 @@ export class MicroFnApiClient {
 		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) throw new Error(`Failed to list packages: ${res.statusText}`);
 
-		const data = (await res.json()) as { packages?: Array<{ name: string; version: string }> };
+		const data = (await res.json()) as {
+			packages?: Array<{ name: string; version: string }>;
+		};
 		return data.packages || [];
 	}
 
@@ -122,7 +124,9 @@ export class MicroFnApiClient {
 			body: JSON.stringify(body),
 		});
 		if (!res.ok) throw new Error(`Failed to install package: ${res.statusText}`);
-		const data = (await res.json()) as { package?: { name: string; version: string } };
+		const data = (await res.json()) as {
+			package?: { name: string; version: string };
+		};
 		return data.package || { name: packageName, version: version || "" };
 	}
 
@@ -141,7 +145,9 @@ export class MicroFnApiClient {
 			},
 		);
 		if (!res.ok) throw new Error(`Failed to update package: ${res.statusText}`);
-		const data = (await res.json()) as { package?: { name: string; version: string } };
+		const data = (await res.json()) as {
+			package?: { name: string; version: string };
+		};
 		return data.package || { name: packageName, version: version || "" };
 	}
 
@@ -344,7 +350,7 @@ export class MicroFnApiClient {
 	// Function Generation
 
 	async generateFunction(params: GenerateFunctionParams): Promise<GenerateFunctionResult> {
-		const url = `${this.baseUrl}/generate/generate`;
+		const url = `${this.baseUrl}/generate/function`;
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Prompt:", params.prompt);
 
