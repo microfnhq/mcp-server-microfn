@@ -265,7 +265,7 @@ export class MicroFnApiClient {
 	// Function Execution
 
 	async executeFunction(functionId: string, inputData: any): Promise<ExecuteFunctionResult> {
-		const url = `${this.runBaseUrl}/run/${functionId}`;
+		const url = `${this.runBaseUrl}/run/${functionId}?format=json&includeLogs=true`;
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Input data:", JSON.stringify(inputData));
 
