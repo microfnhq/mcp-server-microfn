@@ -260,36 +260,8 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		exp: claims.exp,
 	});
 
-	// Exchange Auth0 token for MicroFn PAT
-	console.log("[OAuth] Exchanging Auth0 token for MicroFn PAT");
-	let microfnPAT: string | undefined;
-
-	try {
-		const apiBaseUrl = c.env.API_BASE_URL || "https://microfn.dev/api";
-		const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				idToken: result.id_token,
-			}),
-		});
-
-		if (exchangeResponse.ok) {
-			const data = (await exchangeResponse.json()) as { token: string };
-			microfnPAT = data.token;
-			console.log("[OAuth] Successfully exchanged token for user:", claims.email);
-		} else {
-			console.error(
-				"[OAuth] Token exchange failed:",
-				exchangeResponse.status,
-				await exchangeResponse.text(),
-			);
-		}
-	} catch (error) {
-		console.error("[OAuth] Token exchange error:", error);
-	}
+	// No longer exchanging for MicroFn PAT - using Auth0 token directly
+	console.log("[OAuth] Using Auth0 access token directly for MicroFn API");
 
 	// Complete the authorization
 	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
@@ -307,7 +279,7 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 				accessTokenTTL: result.expires_in, // Store in seconds
 				refreshToken: result.refresh_token,
 			},
-			microfnToken: microfnPAT, // Store the MicroFn PAT
+			// microfnToken removed - using Auth0 access token directly
 		} as UserProps,
 	});
 
@@ -315,7 +287,8 @@ export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OA
 		redirectTo,
 		tokenSetTTL: result.expires_in || 3600,
 		tokenSetTTLInMs: (result.expires_in || 3600) * 1000,
-		hasMicrofnPAT: !!microfnPAT,
+		usingAuth0Token: true,
+		tokenExpiresAt: new Date(Date.now() + (result.expires_in || 3600) * 1000).toISOString(),
 	});
 
 	return Response.redirect(redirectTo);
@@ -339,7 +312,7 @@ export async function tokenExchangeCallback(
 			grantType: options.grantType,
 			originalTTL: ttlInSeconds,
 			convertedTTLMs: ttlInMs,
-			hasMicrofnToken: !!options.props.microfnToken,
+			hasAuth0Token: !!options.props.tokenSet?.accessToken,
 			userSub: options.props.claims?.sub,
 		});
 
@@ -355,7 +328,7 @@ export async function tokenExchangeCallback(
 		console.log("[OAuth][tokenExchange] Refresh token grant started:", {
 			grantType: options.grantType,
 			hasRefreshToken: !!options.props.tokenSet.refreshToken,
-			currentMicrofnToken: !!options.props.microfnToken,
+			hasAuth0Token: !!options.props.tokenSet?.accessToken,
 			userSub: options.props.claims?.sub,
 		});
 
@@ -400,35 +373,8 @@ export async function tokenExchangeCallback(
 			name: claims.name,
 		});
 
-		// Exchange the new Auth0 token for a fresh MicroFn PAT
-		let microfnPAT: string | undefined;
-		if (refreshTokenResponse.id_token) {
-			try {
-				const apiBaseUrl = (env as any).API_BASE_URL || "https://microfn.dev/api";
-				const exchangeResponse = await fetch(`${apiBaseUrl}/auth/exchange-token`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						idToken: refreshTokenResponse.id_token,
-					}),
-				});
-
-				if (exchangeResponse.ok) {
-					const data = (await exchangeResponse.json()) as { token: string };
-					microfnPAT = data.token;
-					console.log("[OAuth] Successfully refreshed MicroFn PAT for user");
-				} else {
-					console.error(
-						"[OAuth] Token exchange failed during refresh:",
-						exchangeResponse.status,
-					);
-				}
-			} catch (error) {
-				console.error("[OAuth] Token exchange error during refresh:", error);
-			}
-		}
+		// No longer exchanging for MicroFn PAT - using Auth0 token directly
+		console.log("[OAuth] Using refreshed Auth0 access token directly for MicroFn API");
 
 		// Store the new token set and claims.
 		const ttlInSeconds = refreshTokenResponse.expires_in;
@@ -437,8 +383,8 @@ export async function tokenExchangeCallback(
 		console.log("[OAuth][tokenExchange] Refresh complete:", {
 			originalTTL: ttlInSeconds,
 			convertedTTLMs: ttlInMs,
-			newMicrofnPAT: !!microfnPAT,
-			keptOldPAT: !microfnPAT && !!options.props.microfnToken,
+			usingAuth0Token: true,
+			tokenExpiresAt: new Date(Date.now() + ttlInMs).toISOString(),
 		});
 
 		return {
@@ -451,7 +397,7 @@ export async function tokenExchangeCallback(
 					accessTokenTTL: ttlInSeconds, // Keep in seconds in tokenSet
 					refreshToken: refreshTokenResponse.refresh_token || auth0RefreshToken,
 				},
-				microfnToken: microfnPAT || options.props.microfnToken, // Keep old PAT if exchange fails
+				// microfnToken removed - using Auth0 access token directly
 			},
 			accessTokenTTL: ttlInMs, // Use milliseconds for OAuth provider
 		};

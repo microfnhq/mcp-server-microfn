@@ -14,33 +14,37 @@ export class AuthenticatedMCP extends McpAgent<Env, {}, UserProps> {
 	async init() {
 		console.log("[AuthenticatedMCP] Init called with props:", {
 			hasTokenSet: !!this.props.tokenSet,
-			hasMicrofnToken: !!this.props.microfnToken,
+			hasIdToken: !!this.props.tokenSet?.idToken,
+			hasAccessToken: !!this.props.tokenSet?.accessToken,
 			userEmail: this.props.claims?.email,
 			userSub: this.props.claims?.sub,
 			tokenSetTTL: this.props.tokenSet?.accessTokenTTL,
 			hasRefreshToken: !!this.props.tokenSet?.refreshToken,
 		});
 
-		// Use the MicroFn PAT from token exchange
-		const apiToken = this.props.microfnToken;
+		// Use the Auth0 ID token (not access token) for API authentication
+		const apiToken = this.props.tokenSet?.idToken;
 
 		if (!apiToken) {
 			console.error(
-				"[AuthenticatedMCP] No MicroFn PAT available for user:",
+				"[AuthenticatedMCP] No Auth0 ID token available for user:",
 				this.props.claims?.email,
 			);
 			console.error("[AuthenticatedMCP] Props:", {
-				microfnToken: this.props.microfnToken,
 				tokenSet: this.props.tokenSet,
 				claims: this.props.claims,
 			});
-			throw new Error(
-				"No MicroFn API token available for this user. Please re-authenticate.",
-			);
+			throw new Error("No Auth0 ID token available for this user. Please re-authenticate.");
 		}
 
-		console.log("[AuthenticatedMCP] Using MicroFn PAT for user:", this.props.claims?.email);
-		console.log("[AuthenticatedMCP] Token prefix:", apiToken.substring(0, 10) + "...");
+		console.log("[AuthenticatedMCP] Using Auth0 ID token for user:", this.props.claims?.email);
+		console.log("[AuthenticatedMCP] ID token prefix:", apiToken.substring(0, 10) + "...");
+
+		// Log token expiration info
+		const tokenTTL = this.props.tokenSet?.accessTokenTTL || 3600;
+		const tokenExpiresAt = new Date(Date.now() + tokenTTL * 1000);
+		console.log("[AuthenticatedMCP] Token expires at:", tokenExpiresAt.toISOString());
+		console.log("[AuthenticatedMCP] Time until expiration:", tokenTTL, "seconds");
 
 		// Initialize workspace cache
 		this.workspaceCache = new WorkspaceCache(this.ctx.storage, this.toolRefs);

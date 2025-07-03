@@ -36,6 +36,7 @@ export function createMcpServer(
 ): McpServer {
 	console.log("[mcpServerFactory] Creating MCP server:", {
 		hasApiToken: !!apiToken,
+		tokenType: "Auth0 ID Token",
 		tokenPrefix: apiToken ? apiToken.substring(0, 10) + "..." : "none",
 		userEmail: props.claims?.email,
 		userSub: props.claims?.sub,
@@ -60,7 +61,7 @@ export function createMcpServer(
 							email: props.claims?.email,
 							sub: props.claims?.sub,
 							name: props.claims?.name,
-							hasMicrofnToken: !!apiToken,
+							hasAuth0IdToken: !!apiToken,
 							tokenPrefix: apiToken ? apiToken.substring(0, 10) + "..." : "none",
 							debug: {
 								extra_type: typeof extra,

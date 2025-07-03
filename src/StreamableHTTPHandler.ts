@@ -150,21 +150,21 @@ export class StreamableHTTPHandler {
 		try {
 			console.log("[StreamableHTTP] Handle called with userProps:", {
 				hasTokenSet: !!this.userProps.tokenSet,
-				hasMicrofnToken: !!this.userProps.microfnToken,
+				hasIdToken: !!this.userProps.tokenSet?.idToken,
+				hasAccessToken: !!this.userProps.tokenSet?.accessToken,
 				userEmail: this.userProps.claims?.email,
 				userSub: this.userProps.claims?.sub,
 				method: request.method,
 			});
 
-			const apiToken = this.userProps.microfnToken;
+			const apiToken = this.userProps.tokenSet?.idToken;
 
 			if (!apiToken) {
 				console.error(
-					"[StreamableHTTP] No MicroFn PAT available for user:",
+					"[StreamableHTTP] No Auth0 ID token available for user:",
 					this.userProps.claims?.email,
 				);
 				console.error("[StreamableHTTP] UserProps:", {
-					microfnToken: this.userProps.microfnToken,
 					tokenSet: this.userProps.tokenSet,
 					claims: this.userProps.claims,
 				});
@@ -173,7 +173,7 @@ export class StreamableHTTPHandler {
 						jsonrpc: "2.0",
 						error: {
 							code: 401,
-							message: "No MicroFn API token available. Please re-authenticate.",
+							message: "No Auth0 ID token available. Please re-authenticate.",
 						},
 						id: null,
 					}),
@@ -190,7 +190,7 @@ export class StreamableHTTPHandler {
 				"[StreamableHTTP] Handling request for user:",
 				this.userProps.claims?.email,
 			);
-			console.log("[StreamableHTTP] Token prefix:", apiToken.substring(0, 10) + "...");
+			console.log("[StreamableHTTP] ID token prefix:", apiToken.substring(0, 10) + "...");
 
 			// Handle GET requests to establish session
 			if (request.method === "GET") {

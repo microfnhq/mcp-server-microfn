@@ -76,6 +76,7 @@ export class MicroFnApiClient {
 			baseUrl: this.baseUrl,
 			runBaseUrl: this.runBaseUrl,
 			hasToken: !!apiToken,
+			tokenType: apiToken.startsWith("mfn_") ? "PAT" : "Auth0 ID Token",
 		});
 	}
 

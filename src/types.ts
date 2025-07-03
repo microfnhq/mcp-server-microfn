@@ -8,5 +8,4 @@ export type UserProps = {
 		refreshToken?: string;
 		accessTokenTTL?: number;
 	};
-	microfnToken?: string; // MicroFn PAT from token exchange
 };
