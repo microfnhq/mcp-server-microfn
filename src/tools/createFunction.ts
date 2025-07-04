@@ -1,6 +1,6 @@
 // my-mcp-server/src/tools/createFunction.ts
 
-import { MicroFnApiClient, Workspace } from "../microfnApiClient.js";
+import { MicroFnApiClient, type Workspace } from "../microfnApiClient.js";
 
 export interface CreateFunctionRequest {
 	name: string;
