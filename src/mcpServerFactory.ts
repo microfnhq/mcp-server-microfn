@@ -220,13 +220,26 @@ export function createMcpServer(
 	// Execute function
 	const executeFunctionTool = server.tool(
 		"executeFunction",
-		"Execute a function with given input. Requires functionId and optional inputData parameters.",
+		"Execute a function with given input. Supports both UUID and username/function format identifiers. Requires functionId and optional inputData parameters.",
 		{
 			functionId: z
 				.string()
-				.uuid()
+				.refine(
+					(val) => {
+						// Check if it's a UUID format
+						const uuidRegex =
+							/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+						// Check if it's a username/function format
+						const usernameFormatRegex = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
+						return uuidRegex.test(val) || usernameFormatRegex.test(val);
+					},
+					{
+						message:
+							"functionId must be either a UUID (e.g., '12345678-1234-5678-1234-567812345678') or username/function format (e.g., 'david/bitcoinpricenotifier')",
+					},
+				)
 				.describe(
-					'The UUID of the function/workspace to execute (e.g., "12345678-1234-5678-1234-567812345678")',
+					'The function identifier to execute. Can be either a UUID (e.g., "12345678-1234-5678-1234-567812345678") or username/function format (e.g., "david/bitcoinpricenotifier")',
 				),
 			inputData: z
 				.object({})
