@@ -226,20 +226,22 @@ export function createMcpServer(
 				.string()
 				.refine(
 					(val) => {
-						// Check if it's a UUID format
-						const uuidRegex =
+						// Check if it's a UUID format with hyphens
+						const uuidWithHyphensRegex =
 							/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+						// Check if it's a UUID format without hyphens
+						const uuidWithoutHyphensRegex = /^[0-9a-f]{32}$/i;
 						// Check if it's a username/function format
 						const usernameFormatRegex = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
-						return uuidRegex.test(val) || usernameFormatRegex.test(val);
+						return uuidWithHyphensRegex.test(val) || uuidWithoutHyphensRegex.test(val) || usernameFormatRegex.test(val);
 					},
 					{
 						message:
-							"functionId must be either a UUID (e.g., '12345678-1234-5678-1234-567812345678') or username/function format (e.g., 'david/bitcoinpricenotifier')",
+							"functionId must be either a UUID (with or without hyphens, e.g., '12345678-1234-5678-1234-567812345678' or '12345678123456781234567812345678') or username/function format (e.g., 'david/bitcoinpricenotifier')",
 					},
 				)
 				.describe(
-					'The function identifier to execute. Can be either a UUID (e.g., "12345678-1234-5678-1234-567812345678") or username/function format (e.g., "david/bitcoinpricenotifier")',
+					'The function identifier to execute. Can be either a UUID with hyphens (e.g., "12345678-1234-5678-1234-567812345678"), UUID without hyphens (e.g., "12345678123456781234567812345678"), or username/function format (e.g., "david/bitcoinpricenotifier")',
 				),
 			inputData: z
 				.object({})
