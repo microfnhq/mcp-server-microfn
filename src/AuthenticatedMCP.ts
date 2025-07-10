@@ -47,7 +47,7 @@ export class AuthenticatedMCP extends McpAgent<Env, {}, UserProps> {
 			const currentTime = Math.floor(Date.now() / 1000);
 			const tokenExp = tokenPayload.exp as number;
 			const tokenIat = tokenPayload.iat as number;
-			
+
 			console.log("[AuthenticatedMCP] Token details:", {
 				issuedAt: new Date(tokenIat * 1000).toISOString(),
 				expiresAt: new Date(tokenExp * 1000).toISOString(),

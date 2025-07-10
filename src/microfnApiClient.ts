@@ -240,7 +240,7 @@ export class MicroFnApiClient {
 	async listWorkspaces(): Promise<Workspace[]> {
 		// Validate token before making the request
 		this.validateToken();
-		
+
 		const url = `${this.baseUrl}/workspaces`;
 		console.log("[MicroFnApiClient] GET", url);
 
