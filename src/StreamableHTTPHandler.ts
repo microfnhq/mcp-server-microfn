@@ -199,7 +199,7 @@ export class StreamableHTTPHandler {
 					JSON.stringify({
 						message: "MCP streamable-http endpoint ready",
 						authenticated: true,
-						user: this.userProps.claims.email,
+						user: this.userProps.claims?.email,
 					}),
 					{
 						headers: {

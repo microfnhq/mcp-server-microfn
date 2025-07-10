@@ -1,121 +1,94 @@
-# CLAUDE.md
+<file_purpose>
+Prevent runtime errors and architectural drift in the MicroFn MCP server. Ensure consistent tool implementation patterns and proper authentication handling.
+</file_purpose>
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+<assistant_expectations>
+• Emit TypeScript code in fenced blocks with proper imports
+• Use Zod schemas for all MCP tool parameter validation
+• Reference MicroFnApiClient for all API interactions
+• Apply Biome formatting after every code change
+• Validate UUID formats for functionId parameters
+</assistant_expectations>
 
-## Project Overview
+<repo_info github="https://github.com/microfnhq/mcp-server-microfn" owner="microfnhq" repo="mcp-server-microfn"/>
 
-This is an MCP (Model Context Protocol) server for the MicroFn platform - a Cloudflare Worker that provides MCP tools for managing serverless functions. The server acts as a bridge between MCP clients and the MicroFn REST API.
+<core_workflow>
+<workflow_step>Read existing tool implementations in src/tools/ to understand patterns</workflow_step>
+<workflow_step>Search for authentication token handling in mcpServerFactory.ts</workflow_step>
+<workflow_step>Understand the two-part tool architecture: handler + registration</workflow_step>
+<workflow_step>Edit incrementally: handler first, then registration, then API client if needed</workflow_step>
+<workflow_step>Verify with npm run type-check and format with just format</workflow_step>
+</core_workflow>
 
-## Development Commands
+<completion_criteria>
+• All TypeScript compiles without errors
+• Biome formatting passes
+• New tools follow handler + registration pattern
+• Zod schemas used for parameter validation
+• MicroFnApiClient methods return proper interfaces
+</completion_criteria>
 
-```bash
-# Local development server
-npm run dev
-# or
-npm start
+<success_metrics>
+• Tool executes successfully via MCP protocol
+• Authentication works with bearer tokens
+• Error handling returns consistent format
+• API endpoints match Python client patterns
+</success_metrics>
 
-# Deploy to Cloudflare Workers
-npm run deploy
+<code_review_rules>
+• Use Zod schemas for all MCP tool parameters
+<rule_rationale for="zod-schemas">McpAgent wrapper requires Zod to extract JSON-RPC parameters correctly</rule_rationale>
+• Pass apiToken as first parameter to all tool handlers
+• Create new MicroFnApiClient instance per request
+• Use functionId parameter name in user-facing tools
+<rule_rationale for="function-id">Maintains consistency with Python API client naming</rule_rationale>
+• Wrap all handler calls in try/catch blocks
+• Return structured responses via content array format
+</code_review_rules>
 
-# Code formatting and linting
-npm run format
-npm run lint:fix
-```
+<navigation>
+• src/tools/* - Individual tool implementations
+• src/mcpServerFactory.ts - Tool registration and MCP server setup
+• src/microfnApiClient.ts - HTTP client for MicroFn REST API
+• src/index.ts - Main server with OAuth and routing
+</navigation>
 
-## Architecture
+<conventions>
+• Use async/await for all API calls
+• Export interfaces for Request/Response types
+• Follow handler naming: handleToolName
+• Use base URLs: https://microfn.dev/api and https://microfn.dev/run
+• Apply ES2022 module syntax throughout
+</conventions>
 
-**Core Components:**
-- `src/index.ts` - Main server setup with OAuth provider and routing
-- `src/AuthenticatedMCP.ts` - Durable Object for SSE transport
-- `src/StreamableHTTPHandler.ts` - Handler for HTTP transport (stateless)
-- `src/mcpServerFactory.ts` - Shared MCP server configuration
-- `src/microfnApiClient.ts` - HTTP client for MicroFn REST API
-- `src/tools/` - Individual tool implementations (15 tools total)
+<before_editing>
+• Run npm run type-check to verify current state
+• Check existing tools for parameter patterns
+• Verify authentication token is available
+• Review API client for similar methods
+</before_editing>
 
-**Endpoints:**
-- `/sse` - Server-Sent Events endpoint for MCP over SSE (legacy)
-- `/mcp` - HTTP endpoint for streamable-http transport (recommended)
-- `/authorize`, `/callback` - OAuth authentication flow
-- `/logout` - Session cleanup
+<authentication>
+• Extract bearer tokens from Authorization header
+• Use session-based storage via Durable Objects
+• Fall back to environment variables when needed
+• Pass apiToken to all tool handlers as first parameter
+• Create MicroFnApiClient instance per request with token
+</authentication>
 
-**Tool Architecture:**
-Each tool in `src/tools/` follows a consistent pattern:
-- Exports a tool definition object with `name`, `description`, `inputSchema`
-- Exports a handler function that takes `(args, client)` parameters
-- Uses Zod schemas for input validation
-- Returns structured responses via the `MicroFnAPIClient`
+<testing>
+• Run npm run type-check for TypeScript validation
+• Test with npm run dev and MCP protocol calls
+• Verify bearer token authentication works
+• Use just format for consistent code formatting
+</testing>
 
-## Authentication
-
-The server supports multiple authentication strategies:
-- Bearer tokens via Authorization headers
-- Session-based token storage using Durable Objects
-- Environment variable fallbacks
-- Token extraction from various request contexts
-
-Authentication tokens are MicroFn API tokens that must be obtained from the MicroFn platform.
-
-## Key Dependencies
-
-- `@agents-sdk/core` - Core MCP agent framework
-- `@modelcontextprotocol/sdk` - MCP protocol implementation
-- `zod` - Runtime type validation
-- `wrangler` - Cloudflare Workers CLI
-
-## Adding New Tools
-
-### Tool Structure
-Tools are organized in two parts:
-
-1. **Tool Handler** (`src/tools/[toolName].ts`)
-   - Contains the actual implementation logic
-   - Interfaces for request/response types
-   - Uses `MicroFnApiClient` for API calls
-   - Always takes `token` as first parameter
-
-2. **Tool Registration** (`src/mcpServerFactory.ts` in `createMcpServer()`)
-   - Defines the MCP tool schema and description
-   - Maps input parameters to handler function
-   - Handles errors and response formatting
-   
-### CRITICAL: Tool Parameter Schema Format
-
-When using the MCP SDK with Cloudflare's `agents` package (McpAgent), you MUST use Zod schemas for tool parameters, NOT plain object definitions:
-
-**❌ WRONG - This will cause parameters to be undefined:**
-```typescript
-server.tool('getFunctionCode', 'Get function code', {
-  functionId: { 
-    type: 'string',
-    description: 'The function ID'
-  }
-}, async (args) => {
-  // args will be {signal: {}, requestId: N} instead of the actual params!
-});
-```
-
-**✅ CORRECT - Use Zod schemas:**
-```typescript
-import { z } from 'zod';
-
-server.tool('getFunctionCode', 'Get function code', {
-  functionId: z.string().uuid().describe('The function ID')
-}, async ({ functionId }) => {
-  // functionId will be properly extracted and typed
-});
-```
-
-The McpAgent wrapper expects Zod schemas to properly parse JSON-RPC parameters. Without Zod, parameters won't be extracted correctly from the request.
-
-### Step-by-Step Process
-
-1. **Create Tool Handler** (`src/tools/newTool.ts`):
-```typescript
+<common_tasks>
+<example_pattern type="tool_handler" lang="ts">
 import { MicroFnApiClient } from "../microfnApiClient";
 
 export interface NewToolRequest {
   functionId: string;
-  // other parameters
 }
 
 export interface NewToolResponse {
@@ -138,45 +111,22 @@ export async function handleNewTool(
     return { success: false, error: error.message };
   }
 }
-```
+</example_pattern>
 
-2. **Add API Client Method** (if needed in `src/microfnApiClient.ts`):
-```typescript
-async someApiMethod(functionId: string): Promise<SomeResult> {
-  const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/endpoint`, {
-    method: "GET",
-    headers: this.getHeaders(),
-  });
-  if (!res.ok) throw new Error(`Failed to call API: ${res.statusText}`);
-  const data = await res.json() as { result?: SomeResult };
-  return data.result || {} as SomeResult;
-}
-```
-
-3. **Import Handler** in `src/mcpServerFactory.ts`:
-```typescript
-import { handleNewTool } from "./tools/newTool";
-```
-
-4. **Register Tool** in `createMcpServer()` function:
-```typescript
-// Import Zod at the top of the file
+<example_pattern type="tool_registration" lang="ts">
 import { z } from 'zod';
 
-// In createMcpServer function:
 server.tool(
   'newTool',
-  'Description of what this tool does',
+  'Description of tool functionality',
   {
     functionId: z.string().uuid().describe('The UUID of the function'),
-    optionalParam: z.string().optional().describe('Optional parameter'),
-    // match your handler's interface exactly
   },
-  async ({ functionId, optionalParam }) => {
+  async ({ functionId }) => {
     try {
       const result = await handleNewTool(
         apiToken,
-        { functionId, optionalParam },
+        { functionId },
         env,
         {} as ExecutionContext,
       );
@@ -188,57 +138,58 @@ server.tool(
     }
   }
 );
-```
+</example_pattern>
+</common_tasks>
 
-5. **Add to Legacy Tool Endpoint** (optional, in `/tool` handler):
-```typescript
-const toolHandlers: Record<string, Function> = {
-  // existing tools...
-  newTool: handleNewTool,
-};
-```
+<performance>
+• Use stateless operation for Cloudflare Workers
+• Create API client instances per request
+• Implement proper error boundaries
+• Minimize token storage overhead
+</performance>
 
-### Important Guidelines
+<warnings>
+• Never use plain object schemas for MCP tools - parameters become undefined
+• Always import handlers in mcpServerFactory.ts or tools won't be available
+• Match handler interface exactly in inputSchema
+• Use UUID validation for functionId parameters
+</warnings>
 
-**Parameter Naming**:
-- Use `functionId` for workspace/function IDs (matches Python API)
-- Match handler interface exactly in `inputSchema`
-- Don't use `workspaceId`/`functionName` - use what the handler expects
+<environment>
+• Target ES2022 for Cloudflare Workers runtime
+• Use Biome for formatting and linting
+• Require Node.js compatible dependencies
+• Deploy via npm run deploy to Cloudflare Workers
+</environment>
 
-**Authentication**:
-- All tools (except `ping`) receive `apiToken` as first parameter
-- Token is extracted from `Authorization: Bearer <token>` header
-- Each request creates a new `MicroFnApiClient` instance with the token
+<api_architecture>
+• Base URL: https://microfn.dev/api for management operations
+• Run URL: https://microfn.dev/run for function execution
+• Use Bearer authentication with MicroFn API tokens
+• Follow REST patterns matching Python client implementation
+• Handle workspace/function ID mapping consistently
+</api_architecture>
 
-**Error Handling**:
-- Always wrap handler calls in try/catch
-- Return consistent error format with `{ content: [{ type: "text", text: "Error: ..." }] }`
-- Log errors for debugging
+<jsdoc_template lang="ts">
+/**
+ * Handles [tool action] for MicroFn functions
+ * @param token - MicroFn API authentication token
+ * @param req - Request parameters matching tool schema
+ * @param env - Cloudflare Workers environment
+ * @param ctx - Execution context for async operations
+ * @returns Promise resolving to structured response
+ */
+</jsdoc_template>
 
-**API Alignment**:
-- Check `../api_client.py` for parameter names and API endpoints
-- Use same base URLs: `https://microfn.dev/api` and `https://microfn.dev/run`
-- Match request/response formats from Python implementation
+<continuous_improvement>
+<trigger>When user feedback or a new critical constraint appears.</trigger>
+<action>
+At task end, output: **Suggested CLAUDE.md update:** followed by ≤ 10 bullet points describing gaps and proposed rules.
+</action>
+</continuous_improvement>
 
-### Testing
-
-1. Run `npm run type-check` to verify TypeScript compilation
-2. Test with `npm run dev` and call your tool via MCP protocol
-3. Verify authentication works by testing with valid bearer token
-
-## Development Notes
-
-- Built for Cloudflare Workers runtime (ES2022 modules)
-- Stateless operation - no session persistence
-- TypeScript configuration targets ES2022
-- Biome used for code formatting and linting
-- Direct JSON-RPC implementation for MCP protocol
-
-## Post-Task Requirements
-
-**IMPORTANT**: After completing any coding task, ALWAYS run:
-```bash
-just format
-```
-
-This ensures consistent code formatting across the entire codebase using Biome. Do not skip this step - it should be part of every task completion.
+<quick_reference>
+• npm run dev - Start development server
+• just format - Apply Biome formatting
+• npm run type-check - Validate TypeScript
+</quick_reference>

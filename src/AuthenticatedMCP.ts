@@ -1,6 +1,7 @@
 import { McpAgent } from "agents/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { decodeJwt } from "jose";
 import type { UserProps } from "./types";
 import type { Env } from "./index";
 import { createMcpServer } from "./mcpServerFactory.js";
@@ -40,11 +41,36 @@ export class AuthenticatedMCP extends McpAgent<Env, {}, UserProps> {
 		console.log("[AuthenticatedMCP] Using Auth0 ID token for user:", this.props.claims?.email);
 		console.log("[AuthenticatedMCP] ID token prefix:", apiToken.substring(0, 10) + "...");
 
-		// Log token expiration info
-		const tokenTTL = this.props.tokenSet?.accessTokenTTL || 3600;
-		const tokenExpiresAt = new Date(Date.now() + tokenTTL * 1000);
-		console.log("[AuthenticatedMCP] Token expires at:", tokenExpiresAt.toISOString());
-		console.log("[AuthenticatedMCP] Time until expiration:", tokenTTL, "seconds");
+		// Decode the ID token to check expiration
+		try {
+			const tokenPayload = decodeJwt(apiToken);
+			const currentTime = Math.floor(Date.now() / 1000);
+			const tokenExp = tokenPayload.exp as number;
+			const tokenIat = tokenPayload.iat as number;
+
+			console.log("[AuthenticatedMCP] Token details:", {
+				issuedAt: new Date(tokenIat * 1000).toISOString(),
+				expiresAt: new Date(tokenExp * 1000).toISOString(),
+				currentTime: new Date(currentTime * 1000).toISOString(),
+				isExpired: currentTime >= tokenExp,
+				timeUntilExpiration: tokenExp - currentTime,
+			});
+
+			// Check if token is expired
+			if (currentTime >= tokenExp) {
+				console.error("[AuthenticatedMCP] Auth0 ID token is expired!");
+				throw new Error("Auth0 ID token has expired. Please re-authenticate.");
+			}
+
+			// Warn if token is about to expire (within 5 minutes)
+			const timeUntilExpiration = tokenExp - currentTime;
+			if (timeUntilExpiration < 300) {
+				console.warn("[AuthenticatedMCP] Token expires in less than 5 minutes!");
+			}
+		} catch (error) {
+			console.error("[AuthenticatedMCP] Failed to decode ID token:", error);
+			throw new Error("Invalid Auth0 ID token. Please re-authenticate.");
+		}
 
 		// Initialize workspace cache
 		this.workspaceCache = new WorkspaceCache(this.ctx.storage, this.toolRefs);

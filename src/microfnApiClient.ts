@@ -1,5 +1,7 @@
 // my-mcp-server/src/microfnApiClient.ts
 
+import { decodeJwt } from "jose";
+
 export interface Workspace {
 	id: string;
 	name: string;
@@ -78,6 +80,32 @@ export class MicroFnApiClient {
 			hasToken: !!apiToken,
 			tokenType: apiToken.startsWith("mfn_") ? "PAT" : "Auth0 ID Token",
 		});
+	}
+
+	private validateToken(): void {
+		// Skip validation for PAT tokens
+		if (this.apiToken.startsWith("mfn_") || this.apiToken.startsWith("mfp_")) {
+			return;
+		}
+
+		// Validate Auth0 ID token
+		try {
+			const tokenPayload = decodeJwt(this.apiToken);
+			const currentTime = Math.floor(Date.now() / 1000);
+			const tokenExp = tokenPayload.exp as number;
+
+			if (currentTime >= tokenExp) {
+				const expiredAt = new Date(tokenExp * 1000).toISOString();
+				console.error("[MicroFnApiClient] Auth0 ID token expired at:", expiredAt);
+				throw new Error(`Auth0 ID token expired at ${expiredAt}. Please re-authenticate.`);
+			}
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("expired")) {
+				throw error;
+			}
+			console.error("[MicroFnApiClient] Failed to validate token:", error);
+			throw new Error("Invalid Auth0 ID token");
+		}
 	}
 
 	private getHeaders(): HeadersInit {
@@ -210,6 +238,9 @@ export class MicroFnApiClient {
 	}
 
 	async listWorkspaces(): Promise<Workspace[]> {
+		// Validate token before making the request
+		this.validateToken();
+
 		const url = `${this.baseUrl}/workspaces`;
 		console.log("[MicroFnApiClient] GET", url);
 
