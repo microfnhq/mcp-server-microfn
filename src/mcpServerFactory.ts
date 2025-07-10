@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { UserProps } from "./types.js";
+import { functionIdentifierSchema } from "./types.js";
 import type { Env } from "./index.js";
 import type { WorkspaceCache, WorkspaceInfo } from "./workspaceCache.js";
 
@@ -162,12 +163,7 @@ export function createMcpServer(
 		"checkDeployment",
 		"Check the deployment status of a function. Requires functionId parameter.",
 		{
-			functionId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the function/workspace to check deployment status (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			functionId: functionIdentifierSchema,
 		},
 		async ({ functionId }) => {
 			console.log("[mcpServerFactory] checkDeployment called with functionId:", functionId);
@@ -222,27 +218,7 @@ export function createMcpServer(
 		"executeFunction",
 		"Execute a function with given input. Supports both UUID and username/function format identifiers. Requires functionId and optional inputData parameters.",
 		{
-			functionId: z
-				.string()
-				.refine(
-					(val) => {
-						// Check if it's a UUID format with hyphens
-						const uuidWithHyphensRegex =
-							/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-						// Check if it's a UUID format without hyphens
-						const uuidWithoutHyphensRegex = /^[0-9a-f]{32}$/i;
-						// Check if it's a username/function format
-						const usernameFormatRegex = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
-						return uuidWithHyphensRegex.test(val) || uuidWithoutHyphensRegex.test(val) || usernameFormatRegex.test(val);
-					},
-					{
-						message:
-							"functionId must be either a UUID (with or without hyphens, e.g., '12345678-1234-5678-1234-567812345678' or '12345678123456781234567812345678') or username/function format (e.g., 'david/bitcoinpricenotifier')",
-					},
-				)
-				.describe(
-					'The function identifier to execute. Can be either a UUID with hyphens (e.g., "12345678-1234-5678-1234-567812345678"), UUID without hyphens (e.g., "12345678123456781234567812345678"), or username/function format (e.g., "david/bitcoinpricenotifier")',
-				),
+			functionId: functionIdentifierSchema,
 			inputData: z
 				.object({})
 				.passthrough()
@@ -277,12 +253,7 @@ export function createMcpServer(
 		"getFunctionCode",
 		"Get the source code of a function. Requires functionId parameter (NOT workspace).",
 		{
-			functionId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the function/workspace to retrieve code from (e.g., "12345678-1234-5678-1234-567812345678"). This must be a UUID, not a workspace name or slug.',
-				),
+			functionId: functionIdentifierSchema,
 		},
 		async ({ functionId }) => {
 			console.log("[mcpServerFactory] getFunctionCode called with functionId:", functionId);
@@ -314,12 +285,7 @@ export function createMcpServer(
 		"updateFunctionCode",
 		"Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Examples: Bitcoin price fetcher: 'export async function main() { const res = await fetch(\"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd\"); return { price_usd: (await res.json()).bitcoin.usd }; }'. With KV counter: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"visits\")) || 0; await kv.set(\"visits\", count + 1); return { visits: count + 1 }; }'. IMPORTANT: Always use default imports for @microfn/* modules. If converting existing code, use 'rewriteFunction' tool first. Requires functionId and code parameters.",
 		{
-			functionId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the function/workspace to update (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			functionId: functionIdentifierSchema,
 			code: z
 				.string()
 				.describe(
@@ -353,12 +319,7 @@ export function createMcpServer(
 		"listPackages",
 		"Lists all npm packages installed for a function. Requires functionId parameter.",
 		{
-			functionId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the function/workspace to list packages for (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			functionId: functionIdentifierSchema,
 		},
 		async ({ functionId }) => {
 			console.log("[mcpServerFactory] listPackages called with functionId:", functionId);
@@ -384,7 +345,7 @@ export function createMcpServer(
 		"installPackage",
 		"Installs an npm package for a function",
 		{
-			functionId: z.string(),
+			functionId: functionIdentifierSchema,
 			name: z.string(),
 			version: z.string(),
 		},
@@ -410,7 +371,7 @@ export function createMcpServer(
 		"updatePackage",
 		"Updates an npm package version for a function",
 		{
-			functionId: z.string(),
+			functionId: functionIdentifierSchema,
 			name: z.string(),
 			version: z.string(),
 		},
@@ -436,7 +397,7 @@ export function createMcpServer(
 		"removePackage",
 		"Removes an npm package from a function",
 		{
-			functionId: z.string(),
+			functionId: functionIdentifierSchema,
 			name: z.string(),
 		},
 		async ({ functionId, name }) => {
@@ -461,7 +422,7 @@ export function createMcpServer(
 		"updatePackageLayer",
 		"Updates the Lambda layer with the function's packages",
 		{
-			functionId: z.string(),
+			functionId: functionIdentifierSchema,
 		},
 		async ({ functionId }) => {
 			try {
@@ -485,7 +446,7 @@ export function createMcpServer(
 		"renameFunction",
 		"Rename a function/workspace",
 		{
-			functionId: z.string(),
+			functionId: functionIdentifierSchema,
 			newName: z.string(),
 		},
 		async ({ functionId, newName }) => {
@@ -510,12 +471,7 @@ export function createMcpServer(
 		"getSecrets",
 		"Retrieves all secrets for the specified function (workspace)",
 		{
-			workspaceId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			workspaceId: functionIdentifierSchema,
 		},
 		async ({ workspaceId }) => {
 			try {
@@ -539,12 +495,7 @@ export function createMcpServer(
 		"createSecret",
 		"Creates a new secret for the specified function (workspace). Secrets cannot be overwritten - delete first if key exists.",
 		{
-			workspaceId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			workspaceId: functionIdentifierSchema,
 			key: z.string(),
 			value: z.string(),
 		},
@@ -570,12 +521,7 @@ export function createMcpServer(
 		"deleteSecret",
 		"Deletes a secret from the specified function (workspace)",
 		{
-			workspaceId: z
-				.string()
-				.uuid()
-				.describe(
-					'The UUID of the workspace/function (e.g., "12345678-1234-5678-1234-567812345678")',
-				),
+			workspaceId: functionIdentifierSchema,
 			secretId: z.string().describe("The ID of the secret to delete"),
 		},
 		async ({ workspaceId, secretId }) => {
