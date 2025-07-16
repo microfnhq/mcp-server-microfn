@@ -5,6 +5,7 @@ import { authorize, callback, confirmConsent, tokenExchangeCallback } from "./au
 import { AuthenticatedMCP } from "./AuthenticatedMCP.js";
 import { createStreamableHTTPHandler } from "./StreamableHTTPHandler.js";
 import type { UserProps } from "./types.js";
+import { wrapDurableObjectMount } from "./auth/errorHandler.js";
 
 // Export the Durable Object class for Cloudflare Workers
 export { AuthenticatedMCP };
@@ -120,10 +121,14 @@ app.get("/.well-known/oauth-authorization-server", (c) => {
 	});
 });
 
+// Create a wrapped handler for the Durable Object mount
+const durableObjectHandler = AuthenticatedMCP.mount("/sse");
+const wrappedApiHandler = wrapDurableObjectMount(durableObjectHandler);
+
 // Export the OAuth provider with SSE mounted at /sse
 export default new OAuthProvider({
 	apiRoute: "/sse",
-	apiHandler: AuthenticatedMCP.mount("/sse") as any,
+	apiHandler: wrappedApiHandler as any,
 	defaultHandler: app as any,
 	authorizeEndpoint: "/authorize",
 	tokenEndpoint: "/token",
