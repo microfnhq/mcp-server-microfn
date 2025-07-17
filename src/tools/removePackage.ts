@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/removePackage.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface RemovePackageRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 	name: string;
 }
 
@@ -17,7 +17,7 @@ export interface RemovePackageResponse {
 /**
  * Removes an npm package from a function.
  * @param token - API token for authentication
- * @param req - Object containing username, functionName, and package name
+ * @param req - Object containing functionName (format: "username/functionName") and package name
  * @returns Success response or error
  */
 export async function handleRemovePackage(
@@ -27,8 +27,9 @@ export async function handleRemovePackage(
 	ctx: ExecutionContext,
 ): Promise<RemovePackageResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		await client.removePackage(req.username, req.functionName, req.name);
+		await client.removePackage(username, funcName, req.name);
 		return {
 			success: true,
 			message: `Successfully removed package ${req.name}`,

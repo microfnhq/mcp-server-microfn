@@ -161,25 +161,24 @@ export function createMcpServer(
 	// Check deployment
 	server.tool(
 		"checkDeployment",
-		"Check the deployment status of a function. Requires username and functionName parameters.",
+		"Check the deployment status of a function. Requires functionName parameter in format 'username/functionName'.",
 		{
-			username: z.string().describe("The username of the function owner"),
 			functionName: z
 				.string()
-				.describe("The name of the function to check deployment status"),
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 		},
-		async ({ username, functionName }) => {
+		async ({ functionName }) => {
 			console.log(
-				"[mcpServerFactory] checkDeployment called with username:",
-				username,
-				"functionName:",
+				"[mcpServerFactory] checkDeployment called with functionName:",
 				functionName,
 			);
 
 			try {
 				const result = await handleCheckDeployment(
 					apiToken,
-					{ username, functionName },
+					{ functionName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -224,19 +223,21 @@ export function createMcpServer(
 	// Execute function
 	const executeFunctionTool = server.tool(
 		"executeFunction",
-		"Execute a function with given input. Requires username, functionName and optional inputData parameters.",
+		"Execute a function with given input. Requires functionName (format: 'username/functionName') and optional inputData parameters.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function to execute"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			inputData: z
 				.object({})
 				.passthrough()
 				.optional()
 				.describe("Optional input data to pass to the function"),
 		},
-		async ({ username, functionName, inputData }) => {
+		async ({ functionName, inputData }) => {
 			console.log("[mcpServerFactory] executeFunction called:", {
-				username,
 				functionName,
 				inputData,
 			});
@@ -244,7 +245,7 @@ export function createMcpServer(
 			try {
 				const result = await handleExecuteFunction(
 					apiToken,
-					{ username, functionName, inputData },
+					{ functionName, inputData },
 					env,
 					{} as ExecutionContext,
 				);
@@ -261,23 +262,24 @@ export function createMcpServer(
 	// Get function code
 	const getFunctionCodeTool = server.tool(
 		"getFunctionCode",
-		"Get the source code of a function. Requires username and functionName parameters.",
+		"Get the source code of a function. Requires functionName parameter in format 'username/functionName'.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function to retrieve code from"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 		},
-		async ({ username, functionName }) => {
+		async ({ functionName }) => {
 			console.log(
-				"[mcpServerFactory] getFunctionCode called with username:",
-				username,
-				"functionName:",
+				"[mcpServerFactory] getFunctionCode called with functionName:",
 				functionName,
 			);
 
 			try {
 				const result = await handleGetFunctionCode(
 					apiToken,
-					{ username, functionName },
+					{ functionName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -299,26 +301,29 @@ export function createMcpServer(
 	// Update function code
 	server.tool(
 		"updateFunctionCode",
-		"Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Examples: Bitcoin price fetcher: 'export async function main() { const res = await fetch(\"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd\"); return { price_usd: (await res.json()).bitcoin.usd }; }'. With KV counter: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"visits\")) || 0; await kv.set(\"visits\", count + 1); return { visits: count + 1 }; }'. IMPORTANT: Always use default imports for @microfn/* modules. If converting existing code, use 'rewriteFunction' tool first. Requires username, functionName and code parameters.",
+		"Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Examples: Bitcoin price fetcher: 'export async function main() { const res = await fetch(\"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd\"); return { price_usd: (await res.json()).bitcoin.usd }; }'. With KV counter: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"visits\")) || 0; await kv.set(\"visits\", count + 1); return { visits: count + 1 }; }'. IMPORTANT: Always use default imports for @microfn/* modules. If converting existing code, use 'rewriteFunction' tool first. Requires functionName (format: 'username/functionName') and code parameters.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function to update"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			code: z
 				.string()
 				.describe(
 					"The new TypeScript code. Can export: 1) 'export async function main() {...}' directly, OR 2) Any named exported function (gets auto-wrapped). Examples: Weather API: 'export async function getWeather() { const res = await fetch(\"https://wttr.in/Tokyo?format=3\"); return res.text(); }'. Timer with KV: 'import kv from \"@microfn/kv\"; export async function main() { const val = (await kv.get<number>(\"timer\")) || 0; await kv.set(\"timer\", val + 1); return val + 1; }'. ALWAYS use default imports for @microfn/* modules. If unsure, use 'rewriteFunction' tool first.",
 				),
 		},
-		async ({ username, functionName, code }) => {
+		async ({ functionName, code }) => {
 			console.log("[mcpServerFactory] updateFunctionCode called:", {
-				functionId,
+				functionName,
 				codeLength: code?.length,
 			});
 
 			try {
 				const result = await handleUpdateFunctionCode(
 					apiToken,
-					{ username, functionName, code },
+					{ functionName, code },
 					env,
 					{} as ExecutionContext,
 				);
@@ -334,23 +339,21 @@ export function createMcpServer(
 	// List packages
 	server.tool(
 		"listPackages",
-		"Lists all npm packages installed for a function. Requires username and functionName parameters.",
+		"Lists all npm packages installed for a function. Requires functionName parameter in format 'username/functionName'.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function to list packages for"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 		},
-		async ({ username, functionName }) => {
-			console.log(
-				"[mcpServerFactory] listPackages called with username:",
-				username,
-				"functionName:",
-				functionName,
-			);
+		async ({ functionName }) => {
+			console.log("[mcpServerFactory] listPackages called with functionName:", functionName);
 
 			try {
 				const result = await handleListPackages(
 					apiToken,
-					{ username, functionName },
+					{ functionName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -366,18 +369,21 @@ export function createMcpServer(
 	// Install package
 	server.tool(
 		"installPackage",
-		"Installs an npm package for a function",
+		"Installs an npm package for a function. Requires functionName (format: 'username/functionName'), package name and version.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			name: z.string().describe("The npm package name to install"),
 			version: z.string().describe("The package version to install"),
 		},
-		async ({ username, functionName, name, version }) => {
+		async ({ functionName, name, version }) => {
 			try {
 				const result = await handleInstallPackage(
 					apiToken,
-					{ username, functionName, name, version },
+					{ functionName, name, version },
 					env,
 					{} as ExecutionContext,
 				);
@@ -395,16 +401,19 @@ export function createMcpServer(
 		"updatePackage",
 		"Updates an npm package version for a function",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			name: z.string().describe("The npm package name to update"),
 			version: z.string().describe("The new package version"),
 		},
-		async ({ username, functionName, name, version }) => {
+		async ({ functionName, name, version }) => {
 			try {
 				const result = await handleUpdatePackage(
 					apiToken,
-					{ username, functionName, name, version },
+					{ functionName, name, version },
 					env,
 					{} as ExecutionContext,
 				);
@@ -422,15 +431,18 @@ export function createMcpServer(
 		"removePackage",
 		"Removes an npm package from a function",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			name: z.string().describe("The npm package name to remove"),
 		},
-		async ({ username, functionName, name }) => {
+		async ({ functionName, name }) => {
 			try {
 				const result = await handleRemovePackage(
 					apiToken,
-					{ username, functionName, name },
+					{ functionName, name },
 					env,
 					{} as ExecutionContext,
 				);
@@ -448,14 +460,17 @@ export function createMcpServer(
 		"updatePackageLayer",
 		"Updates the Lambda layer with the function's packages",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 		},
-		async ({ username, functionName }) => {
+		async ({ functionName }) => {
 			try {
 				const result = await handleUpdatePackageLayer(
 					apiToken,
-					{ username, functionName },
+					{ functionName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -473,15 +488,20 @@ export function createMcpServer(
 		"renameFunction",
 		"Rename a function/workspace",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The current name of the function"),
-			newName: z.string().describe("The new name for the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
+			newName: z
+				.string()
+				.describe("The new name for the function (just the name, not username/)"),
 		},
-		async ({ username, functionName, newName }) => {
+		async ({ functionName, newName }) => {
 			try {
 				const result = await handleRenameFunction(
 					apiToken,
-					{ username, functionName, newName },
+					{ functionName, newName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -499,14 +519,17 @@ export function createMcpServer(
 		"getSecrets",
 		"Retrieves all secrets for the specified function",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 		},
-		async ({ username, functionName }) => {
+		async ({ functionName }) => {
 			try {
 				const result = await handleGetSecrets(
 					apiToken,
-					{ username, functionName },
+					{ functionName },
 					env,
 					{} as ExecutionContext,
 				);
@@ -524,16 +547,19 @@ export function createMcpServer(
 		"createSecret",
 		"Creates a new secret for the specified function. Secrets cannot be overwritten - delete first if key exists.",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			key: z.string().describe("The secret key name"),
 			value: z.string().describe("The secret value"),
 		},
-		async ({ username, functionName, key, value }) => {
+		async ({ functionName, key, value }) => {
 			try {
 				const result = await handleCreateSecret(
 					apiToken,
-					{ username, functionName, key, value },
+					{ functionName, key, value },
 					env,
 					{} as ExecutionContext,
 				);
@@ -551,15 +577,18 @@ export function createMcpServer(
 		"deleteSecret",
 		"Deletes a secret from the specified function",
 		{
-			username: z.string().describe("The username of the function owner"),
-			functionName: z.string().describe("The name of the function"),
+			functionName: z
+				.string()
+				.describe(
+					"The function identifier in format 'username/functionName' (e.g., 'david/func1')",
+				),
 			secretId: z.string().describe("The ID of the secret to delete"),
 		},
-		async ({ username, functionName, secretId }) => {
+		async ({ functionName, secretId }) => {
 			try {
 				const result = await handleDeleteSecret(
 					apiToken,
-					{ username, functionName, secretId },
+					{ functionName, secretId },
 					env,
 					{} as ExecutionContext,
 				);

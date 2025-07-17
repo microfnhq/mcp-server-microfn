@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/createSecret.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface CreateSecretRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 	key: string;
 	value: string;
 }
@@ -28,7 +28,7 @@ export interface CreateSecretResponse {
  * ```
  *
  * @param token - API token for authentication
- * @param req - Object containing username, functionName, key, and value
+ * @param req - Object containing functionName (format: "username/functionName"), key, and value
  * @returns List of secrets after creation or error
  */
 export async function handleCreateSecret(
@@ -38,8 +38,9 @@ export async function handleCreateSecret(
 	ctx: ExecutionContext,
 ): Promise<CreateSecretResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const secrets = await client.createSecret(req.username, req.functionName, {
+		const secrets = await client.createSecret(username, funcName, {
 			key: req.key,
 			value: req.value,
 		});

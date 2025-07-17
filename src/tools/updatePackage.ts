@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/updatePackage.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface UpdatePackageRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 	name: string;
 	version?: string;
 }
@@ -18,7 +18,7 @@ export interface UpdatePackageResponse {
 /**
  * Updates an npm package version for a function.
  * @param token - API token for authentication
- * @param req - Object containing username, functionName, name, and optional version
+ * @param req - Object containing functionName (format: "username/functionName"), name, and optional version
  * @returns Updated package info or error
  */
 export async function handleUpdatePackage(
@@ -28,6 +28,7 @@ export async function handleUpdatePackage(
 	ctx: ExecutionContext,
 ): Promise<UpdatePackageResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 		let version = req.version;
 
 		// Fetch latest version from npm if not specified or set to 'latest'
@@ -48,12 +49,7 @@ export async function handleUpdatePackage(
 		}
 
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const result = await client.updatePackage(
-			req.username,
-			req.functionName,
-			req.name,
-			version,
-		);
+		const result = await client.updatePackage(username, funcName, req.name, version);
 		return { success: true, package: result };
 	} catch (error: any) {
 		return {

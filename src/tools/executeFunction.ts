@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/executeFunction.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface ExecuteFunctionRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 	inputData: any;
 }
 
@@ -16,7 +16,7 @@ export interface ExecuteFunctionResponse {
 
 /**
  * Executes a MicroFn function with the provided input data.
- * @param params - { username, functionName, inputData }
+ * @param params - { functionName (format: "username/functionName"), inputData }
  * @returns { success, result?, error? }
  */
 export async function handleExecuteFunction(
@@ -25,6 +25,7 @@ export async function handleExecuteFunction(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<ExecuteFunctionResponse> {
+	const { username, functionName: funcName } = parseFunctionName(params.functionName);
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 
 	// Set timeout for function execution (configurable, default 20 seconds)
@@ -42,11 +43,7 @@ export async function handleExecuteFunction(
 
 	const executionPromise = async (): Promise<ExecuteFunctionResponse> => {
 		try {
-			const result = await client.executeFunction(
-				params.username,
-				params.functionName,
-				params.inputData,
-			);
+			const result = await client.executeFunction(username, funcName, params.inputData);
 			return { success: true, result };
 		} catch (err: any) {
 			return {

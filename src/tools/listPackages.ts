@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/listPackages.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface ListPackagesRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 }
 
 export interface ListPackagesResponse {
@@ -16,7 +16,7 @@ export interface ListPackagesResponse {
 /**
  * Lists all npm packages installed for a function.
  * @param token - API token for authentication
- * @param req - Object containing the username and functionName
+ * @param req - Object containing the functionName in format "username/functionName"
  * @returns List of packages or error
  */
 export async function handleListPackages(
@@ -26,8 +26,10 @@ export async function handleListPackages(
 	ctx: ExecutionContext,
 ): Promise<ListPackagesResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
+
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const packages = await client.listPackages(req.username, req.functionName);
+		const packages = await client.listPackages(username, funcName);
 		return { success: true, packages };
 	} catch (error: any) {
 		return {

@@ -1,10 +1,10 @@
 // my-mcp-server/src/tools/deleteSecret.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface DeleteSecretRequest {
-	username: string;
-	functionName: string;
+	functionName: string; // format: "username/functionName"
 	secretId: string;
 }
 
@@ -17,7 +17,7 @@ export interface DeleteSecretResponse {
 /**
  * Deletes a secret from the specified function (workspace).
  * @param token - API token for authentication
- * @param req - Object containing username, functionName, and secretId
+ * @param req - Object containing functionName (format: "username/functionName") and secretId
  * @returns Success response or error
  */
 export async function handleDeleteSecret(
@@ -27,8 +27,9 @@ export async function handleDeleteSecret(
 	ctx: ExecutionContext,
 ): Promise<DeleteSecretResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		await client.deleteSecret(req.username, req.functionName, req.secretId);
+		await client.deleteSecret(username, funcName, req.secretId);
 		return {
 			success: true,
 			message: "Secret deleted successfully",
