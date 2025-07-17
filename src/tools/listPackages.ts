@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface ListPackagesRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 }
 
 export interface ListPackagesResponse {
@@ -15,7 +16,7 @@ export interface ListPackagesResponse {
 /**
  * Lists all npm packages installed for a function.
  * @param token - API token for authentication
- * @param req - Object containing the functionId
+ * @param req - Object containing the username and functionName
  * @returns List of packages or error
  */
 export async function handleListPackages(
@@ -26,7 +27,7 @@ export async function handleListPackages(
 ): Promise<ListPackagesResponse> {
 	try {
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const packages = await client.listPackages(req.functionId);
+		const packages = await client.listPackages(req.username, req.functionName);
 		return { success: true, packages };
 	} catch (error: any) {
 		return {
