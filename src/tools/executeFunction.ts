@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface ExecuteFunctionRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 	inputData: any;
 }
 
@@ -14,8 +15,8 @@ export interface ExecuteFunctionResponse {
 }
 
 /**
- * Executes a MicroFn function by ID with the provided input data.
- * @param params - { functionId, inputData }
+ * Executes a MicroFn function with the provided input data.
+ * @param params - { username, functionName, inputData }
  * @returns { success, result?, error? }
  */
 export async function handleExecuteFunction(
@@ -41,7 +42,11 @@ export async function handleExecuteFunction(
 
 	const executionPromise = async (): Promise<ExecuteFunctionResponse> => {
 		try {
-			const result = await client.executeFunction(params.functionId, params.inputData);
+			const result = await client.executeFunction(
+				params.username,
+				params.functionName,
+				params.inputData,
+			);
 			return { success: true, result };
 		} catch (err: any) {
 			return {

@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface CheckDeploymentRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 }
 
 export interface DeploymentDetails {
@@ -20,8 +21,8 @@ export interface CheckDeploymentResponse {
 }
 
 /**
- * Fetches deployment details for a given functionId using MicroFnApiClient.
- * @param req - The request object containing functionId.
+ * Fetches deployment details for a given function using MicroFnApiClient.
+ * @param req - The request object containing username and functionName.
  * @param env - The environment object (should contain MICROFN_API_TOKEN).
  * @returns Deployment details or error.
  */
@@ -31,14 +32,14 @@ export async function handleCheckDeployment(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<CheckDeploymentResponse> {
-	if (!req.functionId) {
-		return { deployment: null, error: "functionId is required" };
+	if (!req.username || !req.functionName) {
+		return { deployment: null, error: "username and functionName are required" };
 	}
 
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 
 	try {
-		const deployment = await client.getLatestDeployment(req.functionId);
+		const deployment = await client.getLatestDeployment(req.username, req.functionName);
 		if (!deployment || !deployment.id) {
 			return { deployment: null, error: "Deployment not found" };
 		}

@@ -3,7 +3,8 @@
 import { MicroFnApiClient, type Workspace } from "../microfnApiClient.js";
 
 export interface RenameFunctionRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 	newName: string;
 }
 
@@ -15,7 +16,7 @@ export interface RenameFunctionResponse {
 
 /**
  * Renames a function/workspace using the MicroFnApiClient.
- * @param req RenameFunctionRequest
+ * @param req RenameFunctionRequest containing username, functionName, and newName
  * @returns RenameFunctionResponse
  */
 export async function handleRenameFunction(
@@ -26,7 +27,7 @@ export async function handleRenameFunction(
 ): Promise<RenameFunctionResponse> {
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
-		const workspace = await client.renameWorkspace(req.functionId, req.newName);
+		const workspace = await client.renameWorkspace(req.username, req.functionName, req.newName);
 		return {
 			success: true,
 			workspace,

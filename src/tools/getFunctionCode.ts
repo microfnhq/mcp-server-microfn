@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface GetFunctionCodeRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 }
 
 export interface GetFunctionCodeResponse {
@@ -12,8 +13,8 @@ export interface GetFunctionCodeResponse {
 }
 
 /**
- * Retrieves the source code for a given functionId using MicroFnApiClient.
- * @param req - Object containing the functionId.
+ * Retrieves the source code for a given function using MicroFnApiClient.
+ * @param req - Object containing username and functionName.
  * @returns The function's source code or an error object.
  */
 export async function handleGetFunctionCode(
@@ -24,7 +25,7 @@ export async function handleGetFunctionCode(
 ): Promise<GetFunctionCodeResponse> {
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
-		const result = await client.getFunctionCode(req.functionId);
+		const result = await client.getFunctionCode(req.username, req.functionName);
 		return { code: result.code };
 	} catch (err: any) {
 		return { error: err?.message || "Unknown error occurred" };

@@ -83,12 +83,67 @@ Prevent runtime errors and architectural drift in the MicroFn MCP server. Ensure
 • Use just format for consistent code formatting
 </testing>
 
+<tool_architecture>
+• Each tool in src/tools/ follows consistent pattern with handler + registration
+• Export tool definition object with name, description, inputSchema
+• Export handler function taking (args, client) parameters
+• Use Zod schemas for input validation - CRITICAL for parameter extraction
+• Return structured responses via MicroFnAPIClient
+• Tools organized in two parts: handler implementation and MCP registration
+• Always takes token as first parameter for authentication
+• Use username/functionName format for function identification
+<rule_rationale for="zod-schemas">MCP SDK with Cloudflare agents requires Zod schemas for proper JSON-RPC parameter parsing</rule_rationale>
+<rule_rationale for="two-part-architecture">Separation of concerns between business logic and MCP protocol handling</rule_rationale>
+</tool_architecture>
+
 <common_tasks>
 <example_pattern type="tool_handler" lang="ts">
 import { MicroFnApiClient } from "../microfnApiClient";
 
 export interface NewToolRequest {
-  functionId: string;
+  username: string;
+  functionName: string;
+</example_pattern>
+
+<example_pattern type="zod_schema_usage" lang="ts">
+// ❌ WRONG - This will cause parameters to be undefined:
+server.tool('getFunctionCode', 'Get function code', {
+  functionId: {
+    type: 'string',
+    description: 'The function ID'
+  }
+}, async (args) => {
+  // args will be {signal: {}, requestId: N} instead of the actual params!
+});
+
+// ✅ CORRECT - Use Zod schemas:
+import { z } from 'zod';
+
+server.tool('getFunctionCode', 'Get function code', {
+  username: z.string().describe('The username of the function owner'),
+  functionName: z.string().describe('The name of the function')
+}, async ({ username, functionName }) => {
+  // username and functionName will be properly extracted and typed
+});
+</example_pattern>
+
+<example_pattern type="api_client_method" lang="ts">
+async someApiMethod(username: string, functionName: string): Promise<SomeResult> {
+  const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/endpoint`, {
+    method: "GET",
+    headers: this.getHeaders(),
+  });
+  if (!res.ok) throw new Error(`Failed to call API: ${res.statusText}`);
+  const data = await res.json() as { result?: SomeResult };
+  return data.result || {} as SomeResult;
+}
+</example_pattern>
+
+<example_pattern type="tool_handler" lang="ts">
+export interface NewToolRequest {
+  username: string;
+  functionName: string;
+  // other parameters
 }
 
 export interface NewToolResponse {
@@ -105,7 +160,7 @@ export async function handleNewTool(
 ): Promise<NewToolResponse> {
   try {
     const client = new MicroFnApiClient(token);
-    const result = await client.someApiMethod(req.functionId);
+    const result = await client.someApiMethod(req.username, req.functionName);
     return { success: true, data: result };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -120,13 +175,16 @@ server.tool(
   'newTool',
   'Description of tool functionality',
   {
-    functionId: z.string().uuid().describe('The UUID of the function'),
+    username: z.string().describe('The username of the function owner'),
+    functionName: z.string().describe('The name of the function'),
+    optionalParam: z.string().optional().describe('Optional parameter'),
+    // match your handler's interface exactly
   },
-  async ({ functionId }) => {
+  async ({ username, functionName, optionalParam }) => {
     try {
       const result = await handleNewTool(
         apiToken,
-        { functionId },
+        { username, functionName, optionalParam },
         env,
         {} as ExecutionContext,
       );
@@ -152,7 +210,8 @@ server.tool(
 • Never use plain object schemas for MCP tools - parameters become undefined
 • Always import handlers in mcpServerFactory.ts or tools won't be available
 • Match handler interface exactly in inputSchema
-• Use UUID validation for functionId parameters
+• Use username/functionName format for function identification
+• API no longer supports function IDs - all endpoints use username/functionName format
 </warnings>
 
 <environment>

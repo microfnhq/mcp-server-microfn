@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface UpdateFunctionCodeRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 	code: string;
 }
 
@@ -15,7 +16,7 @@ export interface UpdateFunctionCodeResponse {
 
 /**
  * Updates the code for a given function/workspace using MicroFnApiClient.
- * @param params - { functionId, code }
+ * @param params - { username, functionName, code }
  * @returns UpdateFunctionCodeResponse
  */
 export async function handleUpdateFunctionCode(
@@ -26,7 +27,11 @@ export async function handleUpdateFunctionCode(
 ): Promise<UpdateFunctionCodeResponse> {
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
-		const data = await client.updateFunctionCode(params.functionId, params.code);
+		const data = await client.updateFunctionCode(
+			params.username,
+			params.functionName,
+			params.code,
+		);
 		return {
 			success: true,
 			data,

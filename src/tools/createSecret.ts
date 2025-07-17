@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface CreateSecretRequest {
-	workspaceId: string;
+	username: string;
+	functionName: string;
 	key: string;
 	value: string;
 }
@@ -27,7 +28,7 @@ export interface CreateSecretResponse {
  * ```
  *
  * @param token - API token for authentication
- * @param req - Object containing workspaceId, key, and value
+ * @param req - Object containing username, functionName, key, and value
  * @returns List of secrets after creation or error
  */
 export async function handleCreateSecret(
@@ -38,7 +39,7 @@ export async function handleCreateSecret(
 ): Promise<CreateSecretResponse> {
 	try {
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const secrets = await client.createSecret(req.workspaceId, {
+		const secrets = await client.createSecret(req.username, req.functionName, {
 			key: req.key,
 			value: req.value,
 		});

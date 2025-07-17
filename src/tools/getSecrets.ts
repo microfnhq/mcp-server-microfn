@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface GetSecretsRequest {
-	workspaceId: string;
+	username: string;
+	functionName: string;
 }
 
 export interface GetSecretsResponse {
@@ -15,7 +16,7 @@ export interface GetSecretsResponse {
 /**
  * Retrieves all secrets for the specified function (workspace).
  * @param token - API token for authentication
- * @param req - Object containing the workspaceId
+ * @param req - Object containing username and functionName
  * @returns List of secrets or error
  */
 export async function handleGetSecrets(
@@ -26,7 +27,7 @@ export async function handleGetSecrets(
 ): Promise<GetSecretsResponse> {
 	try {
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const secrets = await client.listSecrets(req.workspaceId);
+		const secrets = await client.listSecrets(req.username, req.functionName);
 		return { success: true, secrets };
 	} catch (error: any) {
 		return {

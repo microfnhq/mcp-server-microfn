@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface RemovePackageRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 	name: string;
 }
 
@@ -16,7 +17,7 @@ export interface RemovePackageResponse {
 /**
  * Removes an npm package from a function.
  * @param token - API token for authentication
- * @param req - Object containing functionId and package name
+ * @param req - Object containing username, functionName, and package name
  * @returns Success response or error
  */
 export async function handleRemovePackage(
@@ -27,7 +28,7 @@ export async function handleRemovePackage(
 ): Promise<RemovePackageResponse> {
 	try {
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		await client.removePackage(req.functionId, req.name);
+		await client.removePackage(req.username, req.functionName, req.name);
 		return {
 			success: true,
 			message: `Successfully removed package ${req.name}`,

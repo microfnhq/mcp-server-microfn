@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface UpdatePackageRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 	name: string;
 	version?: string;
 }
@@ -17,7 +18,7 @@ export interface UpdatePackageResponse {
 /**
  * Updates an npm package version for a function.
  * @param token - API token for authentication
- * @param req - Object containing functionId, name, and optional version
+ * @param req - Object containing username, functionName, name, and optional version
  * @returns Updated package info or error
  */
 export async function handleUpdatePackage(
@@ -47,7 +48,12 @@ export async function handleUpdatePackage(
 		}
 
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const result = await client.updatePackage(req.functionId, req.name, version);
+		const result = await client.updatePackage(
+			req.username,
+			req.functionName,
+			req.name,
+			version,
+		);
 		return { success: true, package: result };
 	} catch (error: any) {
 		return {

@@ -3,7 +3,8 @@
 import { MicroFnApiClient } from "../microfnApiClient.js";
 
 export interface UpdatePackageLayerRequest {
-	functionId: string;
+	username: string;
+	functionName: string;
 }
 
 export interface UpdatePackageLayerResponse {
@@ -15,7 +16,7 @@ export interface UpdatePackageLayerResponse {
 /**
  * Updates the Lambda layer with the function's packages.
  * @param token - API token for authentication
- * @param req - Object containing functionId
+ * @param req - Object containing username and functionName
  * @returns Success response or error
  */
 export async function handleUpdatePackageLayer(
@@ -26,7 +27,7 @@ export async function handleUpdatePackageLayer(
 ): Promise<UpdatePackageLayerResponse> {
 	try {
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const result = await client.updatePackageLayer(req.functionId);
+		const result = await client.updatePackageLayer(req.username, req.functionName);
 		return {
 			success: true,
 			message: result.message || "Successfully updated package layer",
