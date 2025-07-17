@@ -5,6 +5,7 @@ import { decodeJwt } from "jose";
 export interface Workspace {
 	id: string;
 	name: string;
+	username?: string;
 	// Add other relevant fields as needed
 }
 
@@ -123,8 +124,11 @@ export class MicroFnApiClient {
 
 	// --- Package Management ---
 
-	async listPackages(functionId: string): Promise<Array<{ name: string; version: string }>> {
-		const url = `${this.baseUrl}/workspaces/${functionId}/packages`;
+	async listPackages(
+		username: string,
+		functionName: string,
+	): Promise<Array<{ name: string; version: string }>> {
+		const url = `${this.baseUrl}/workspaces/${username}/${functionName}/packages`;
 		console.log("[MicroFnApiClient] GET", url);
 
 		const res = await fetch(url, {
@@ -142,12 +146,13 @@ export class MicroFnApiClient {
 	}
 
 	async installPackage(
-		functionId: string,
+		username: string,
+		functionName: string,
 		packageName: string,
 		version?: string,
 	): Promise<{ name: string; version: string }> {
 		const body = { name: packageName, version };
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages`, {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/packages`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify(body),
@@ -160,13 +165,14 @@ export class MicroFnApiClient {
 	}
 
 	async updatePackage(
-		functionId: string,
+		username: string,
+		functionName: string,
 		packageName: string,
 		version?: string,
 	): Promise<{ name: string; version: string }> {
 		const body = { version };
 		const res = await fetch(
-			`${this.baseUrl}/workspaces/${functionId}/packages/${encodeURIComponent(packageName)}`,
+			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "PUT",
 				headers: this.getHeaders(),
@@ -180,9 +186,13 @@ export class MicroFnApiClient {
 		return data.package || { name: packageName, version: version || "" };
 	}
 
-	async removePackage(functionId: string, packageName: string): Promise<void> {
+	async removePackage(
+		username: string,
+		functionName: string,
+		packageName: string,
+	): Promise<void> {
 		const res = await fetch(
-			`${this.baseUrl}/workspaces/${functionId}/packages/${encodeURIComponent(packageName)}`,
+			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "DELETE",
 				headers: this.getHeaders(),
@@ -191,11 +201,17 @@ export class MicroFnApiClient {
 		if (!res.ok) throw new Error(`Failed to remove package: ${res.statusText}`);
 	}
 
-	async updatePackageLayer(functionId: string): Promise<{ message?: string }> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/packages/update-layer`, {
-			method: "POST",
-			headers: this.getHeaders(),
-		});
+	async updatePackageLayer(
+		username: string,
+		functionName: string,
+	): Promise<{ message?: string }> {
+		const res = await fetch(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/update-layer`,
+			{
+				method: "POST",
+				headers: this.getHeaders(),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to update package layer: ${res.statusText}`);
 		const data = (await res.json()) as { message?: string };
 		return data;
@@ -214,8 +230,12 @@ export class MicroFnApiClient {
 		return data.workspace || ({} as Workspace);
 	}
 
-	async updateWorkspace(workspaceId: string, params: UpdateWorkspaceParams): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${workspaceId}/code`, {
+	async updateWorkspace(
+		username: string,
+		functionName: string,
+		params: UpdateWorkspaceParams,
+	): Promise<Workspace> {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/code`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ code: params.code }),
@@ -224,8 +244,12 @@ export class MicroFnApiClient {
 		return await res.json();
 	}
 
-	async renameWorkspace(workspaceId: string, newName: string): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${workspaceId}`, {
+	async renameWorkspace(
+		username: string,
+		functionName: string,
+		newName: string,
+	): Promise<Workspace> {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}`, {
 			method: "PATCH",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ name: newName }),
@@ -263,8 +287,8 @@ export class MicroFnApiClient {
 
 	// Function Code
 
-	async getFunctionCode(functionId: string): Promise<FunctionCode> {
-		const url = `${this.baseUrl}/workspaces/${functionId}/code`;
+	async getFunctionCode(username: string, functionName: string): Promise<FunctionCode> {
+		const url = `${this.baseUrl}/workspaces/${username}/${functionName}/code`;
 		console.log("[MicroFnApiClient] GET", url);
 
 		const res = await fetch(url, {
@@ -284,8 +308,12 @@ export class MicroFnApiClient {
 		return { code: data.code || "" };
 	}
 
-	async updateFunctionCode(functionId: string, code: string): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/code`, {
+	async updateFunctionCode(
+		username: string,
+		functionName: string,
+		code: string,
+	): Promise<Workspace> {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/code`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ code }),
@@ -296,8 +324,12 @@ export class MicroFnApiClient {
 
 	// Function Execution
 
-	async executeFunction(functionId: string, inputData: any): Promise<ExecuteFunctionResult> {
-		const url = `${this.runBaseUrl}/run/${functionId}?format=json&includeLogs=true`;
+	async executeFunction(
+		username: string,
+		functionName: string,
+		inputData: any,
+	): Promise<ExecuteFunctionResult> {
+		const url = `${this.runBaseUrl}/run/${username}/${functionName}?format=json&includeLogs=true`;
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Input data:", JSON.stringify(inputData));
 
@@ -328,11 +360,14 @@ export class MicroFnApiClient {
 
 	// Deployments
 
-	async getLatestDeployment(functionId: string): Promise<Deployment> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${functionId}/deployments/latest`, {
-			method: "GET",
-			headers: this.getHeaders(),
-		});
+	async getLatestDeployment(username: string, functionName: string): Promise<Deployment> {
+		const res = await fetch(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/deployments/latest`,
+			{
+				method: "GET",
+				headers: this.getHeaders(),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to get latest deployment: ${res.statusText}`);
 		const data = (await res.json()) as { deployment?: Deployment };
 		return data.deployment || ({} as Deployment);
@@ -340,8 +375,8 @@ export class MicroFnApiClient {
 
 	// Secrets Management
 
-	async listSecrets(workspaceId: string): Promise<Secret[]> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${workspaceId}/secrets`, {
+	async listSecrets(username: string, functionName: string): Promise<Secret[]> {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -350,8 +385,12 @@ export class MicroFnApiClient {
 		return data.secrets || [];
 	}
 
-	async createSecret(workspaceId: string, params: CreateSecretParams): Promise<Secret[]> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${workspaceId}/secrets`, {
+	async createSecret(
+		username: string,
+		functionName: string,
+		params: CreateSecretParams,
+	): Promise<Secret[]> {
+		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ key: params.key, value: params.value }),
@@ -362,7 +401,8 @@ export class MicroFnApiClient {
 	}
 
 	async updateSecret(
-		workspaceId: string,
+		username: string,
+		functionName: string,
 		secretId: string,
 		params: UpdateSecretParams,
 	): Promise<Secret> {
@@ -371,11 +411,14 @@ export class MicroFnApiClient {
 		throw new Error("Update secret not implemented - use create/delete instead");
 	}
 
-	async deleteSecret(workspaceId: string, secretId: string): Promise<void> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${workspaceId}/secrets/${secretId}`, {
-			method: "DELETE",
-			headers: this.getHeaders(),
-		});
+	async deleteSecret(username: string, functionName: string, secretId: string): Promise<void> {
+		const res = await fetch(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/secrets/${secretId}`,
+			{
+				method: "DELETE",
+				headers: this.getHeaders(),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to delete secret: ${res.statusText}`);
 	}
 

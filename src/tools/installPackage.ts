@@ -1,9 +1,10 @@
 // my-mcp-server/src/tools/installPackage.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface InstallPackageRequest {
-	functionId: string;
+	functionName: string; // format: "username/functionName"
 	name: string;
 	version?: string;
 }
@@ -17,7 +18,7 @@ export interface InstallPackageResponse {
 /**
  * Installs an npm package for a function.
  * @param token - API token for authentication
- * @param req - Object containing functionId, name, and optional version
+ * @param req - Object containing functionName (format: "username/functionName"), name, and optional version
  * @returns Installed package info or error
  */
 export async function handleInstallPackage(
@@ -46,8 +47,10 @@ export async function handleInstallPackage(
 			}
 		}
 
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
+
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const result = await client.installPackage(req.functionId, req.name, version);
+		const result = await client.installPackage(username, funcName, req.name, version);
 		return { success: true, package: result };
 	} catch (error: any) {
 		return {

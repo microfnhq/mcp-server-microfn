@@ -1,9 +1,10 @@
 // my-mcp-server/src/tools/updateFunctionCode.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface UpdateFunctionCodeRequest {
-	functionId: string;
+	functionName: string; // format: "username/functionName"
 	code: string;
 }
 
@@ -15,7 +16,7 @@ export interface UpdateFunctionCodeResponse {
 
 /**
  * Updates the code for a given function/workspace using MicroFnApiClient.
- * @param params - { functionId, code }
+ * @param params - { functionName (format: "username/functionName"), code }
  * @returns UpdateFunctionCodeResponse
  */
 export async function handleUpdateFunctionCode(
@@ -24,9 +25,10 @@ export async function handleUpdateFunctionCode(
 	env: any,
 	ctx: ExecutionContext,
 ): Promise<UpdateFunctionCodeResponse> {
+	const { username, functionName: funcName } = parseFunctionName(params.functionName);
 	const client = new MicroFnApiClient(token, env.API_BASE_URL);
 	try {
-		const data = await client.updateFunctionCode(params.functionId, params.code);
+		const data = await client.updateFunctionCode(username, funcName, params.code);
 		return {
 			success: true,
 			data,

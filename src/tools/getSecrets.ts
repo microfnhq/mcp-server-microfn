@@ -1,9 +1,10 @@
 // my-mcp-server/src/tools/getSecrets.ts
 
 import { MicroFnApiClient } from "../microfnApiClient.js";
+import { parseFunctionName } from "./utils.js";
 
 export interface GetSecretsRequest {
-	workspaceId: string;
+	functionName: string; // format: "username/functionName"
 }
 
 export interface GetSecretsResponse {
@@ -15,7 +16,7 @@ export interface GetSecretsResponse {
 /**
  * Retrieves all secrets for the specified function (workspace).
  * @param token - API token for authentication
- * @param req - Object containing the workspaceId
+ * @param req - Object containing functionName (format: "username/functionName")
  * @returns List of secrets or error
  */
 export async function handleGetSecrets(
@@ -25,8 +26,9 @@ export async function handleGetSecrets(
 	ctx: ExecutionContext,
 ): Promise<GetSecretsResponse> {
 	try {
+		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 		const client = new MicroFnApiClient(token, env.API_BASE_URL);
-		const secrets = await client.listSecrets(req.workspaceId);
+		const secrets = await client.listSecrets(username, funcName);
 		return { success: true, secrets };
 	} catch (error: any) {
 		return {
