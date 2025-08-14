@@ -77,7 +77,7 @@
 	 */
 	"dev": {
 		"port": 8787
-	},
+	}
 
 	/**
 	 * Static Assets

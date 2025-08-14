@@ -6,7 +6,13 @@ export interface Workspace {
 	id: string;
 	name: string;
 	username?: string;
-	// Add other relevant fields as needed
+	mcpToolEnabled: boolean;
+	isPublic: boolean;
+	hasPublicEndpoint: boolean;
+	cron?: string;
+	publishedAt?: string | null;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface Secret {
@@ -223,7 +229,10 @@ export class MicroFnApiClient {
 		const res = await fetch(`${this.baseUrl}/workspaces`, {
 			method: "POST",
 			headers: this.getHeaders(),
-			body: JSON.stringify({ name: params.name, initialCode: params.code }),
+			body: JSON.stringify({
+				name: params.name,
+				initialCode: params.code,
+			}),
 		});
 		if (!res.ok) throw new Error(`Failed to create workspace: ${res.statusText}`);
 		const data = (await res.json()) as { workspace?: Workspace };
