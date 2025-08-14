@@ -66,7 +66,7 @@ export class AuthenticatedMCP extends McpAgent<Env, {}, UserProps> {
 		this.workspaceCache = new WorkspaceCache(this.ctx.storage, this.toolRefs);
 
 		// Use the shared server factory with callback to collect tool references
-		this.server = createMcpServer(
+		this.server = await createMcpServer(
 			apiToken,
 			this.props,
 			this.env,

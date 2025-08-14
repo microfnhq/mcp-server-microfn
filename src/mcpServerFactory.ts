@@ -4,7 +4,8 @@ import type { UserProps } from "./types.js";
 import { functionIdentifierSchema } from "./types.js";
 import type { Env } from "./index.js";
 import type { WorkspaceCache, WorkspaceInfo } from "./workspaceCache.js";
-import { MicroFnApiClient } from "./microfnApiClient.js";
+import { MicroFnApiClient, type Workspace } from "./microfnApiClient.js";
+import type { UserDataCacheStub } from "./UserDataCache.js";
 
 // Import all tool handlers
 import { handleCheckDeployment } from "./tools/checkDeployment.js";
@@ -35,6 +36,7 @@ export async function createMcpServer(
     env: Env,
     updateToolsCallback?: (tools: Map<string, any>) => void,
     workspaceCache?: WorkspaceCache,
+    userCacheDO?: UserDataCacheStub,
 ): Promise<McpServer> {
     console.log("[mcpServerFactory] Creating MCP server:", {
         hasApiToken: !!apiToken,
@@ -848,10 +850,40 @@ export async function createMcpServer(
     const registerDynamicTools = async () => {
         try {
             console.log(
-                "[mcpServerFactory] Fetching user functions for dynamic tool registration",
+                "[mcpServerFactory] Starting dynamic tool registration",
             );
-            const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
-            const workspaces = await client.listWorkspaces();
+
+            let workspaces: Workspace[] = [];
+
+            // Try cache first if available
+            if (userCacheDO) {
+                console.log("[mcpServerFactory] Checking cache for functions");
+                const cached = await userCacheDO.getFunctions();
+                if (cached) {
+                    workspaces = cached;
+                    console.log(
+                        "[mcpServerFactory] Using cached functions:",
+                        cached.length,
+                    );
+                }
+            }
+
+            // Fetch from API if no cache hit
+            if (workspaces.length === 0) {
+                console.log("[mcpServerFactory] Fetching functions from API");
+                const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
+                workspaces = await client.listWorkspaces();
+
+                // Update cache if available
+                if (userCacheDO) {
+                    console.log(
+                        "[mcpServerFactory] Updating cache with",
+                        workspaces.length,
+                        "functions",
+                    );
+                    await userCacheDO.setFunctions(workspaces);
+                }
+            }
 
             console.log(
                 `[mcpServerFactory] User ${props.claims?.email} has ${workspaces.length} function(s)`,

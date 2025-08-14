@@ -3,12 +3,13 @@ import { Hono } from "hono";
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { authorize, callback, confirmConsent, tokenExchangeCallback } from "./auth/index.js";
 import { AuthenticatedMCP } from "./AuthenticatedMCP.js";
+import { UserDataCache } from "./UserDataCache.js";
 import { createStreamableHTTPHandler } from "./StreamableHTTPHandler.js";
 import type { UserProps } from "./types.js";
 import { wrapDurableObjectMount } from "./auth/errorHandler.js";
 
-// Export the Durable Object class for Cloudflare Workers
-export { AuthenticatedMCP };
+// Export the Durable Object classes for Cloudflare Workers
+export { AuthenticatedMCP, UserDataCache };
 
 // Environment interface
 export interface Env {
@@ -25,6 +26,7 @@ export interface Env {
 	NODE_ENV?: string;
 	OAUTH_KV?: KVNamespace;
 	MCP_OBJECT?: DurableObjectNamespace;
+	USER_DATA_CACHE?: DurableObjectNamespace;
 	MCP_REQUEST_TIMEOUT_MS?: number;
 	FUNCTION_EXECUTION_TIMEOUT_MS?: number;
 	MCP_SERVER_URL?: string;

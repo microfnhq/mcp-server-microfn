@@ -17,8 +17,8 @@
 	 */
 	"migrations": [
 		{
-			"tag": "v1",
-			"new_sqlite_classes": ["AuthenticatedMCP"]
+			"tag": "v2",
+			"new_sqlite_classes": ["AuthenticatedMCP", "UserDataCache"]
 		}
 	],
 	"durable_objects": {
@@ -26,6 +26,10 @@
 			{
 				"name": "MCP_OBJECT",
 				"class_name": "AuthenticatedMCP"
+			},
+			{
+				"name": "USER_DATA_CACHE",
+				"class_name": "UserDataCache"
 			}
 		]
 	},
