@@ -51,7 +51,71 @@ Prevent runtime errors and architectural drift in the MicroFn MCP server. Ensure
 • src/mcpServerFactory.ts - Tool registration and MCP server setup
 • src/microfnApiClient.ts - HTTP client for MicroFn REST API
 • src/index.ts - Main server with OAuth and routing
+• src/StreamableHTTPHandler.ts - Streamable HTTP transport implementation (primary)
+• src/authenticatedMcp.ts - SSE transport implementation (deprecated)
 </navigation>
+
+<endpoints>
+<endpoint path="/mcp" transport="streamable-http" status="primary">
+• Uses StreamableHTTPHandler for stateful session management
+• Implements Streamable HTTP protocol with Mcp-Session-Id headers
+• Supports session persistence across requests (15-minute TTL)
+• Returns HTTP 202 for JSON-RPC notifications
+• Maintains single MCP server instance per session
+• Registers dynamic tools synchronously on session creation
+• Required headers: Authorization (OAuth), Content-Type: application/json
+• Optional headers: Mcp-Session-Id (for session continuity)
+</endpoint>
+
+<endpoint path="/sse" transport="server-sent-events" status="deprecated">
+• Uses authenticatedMcp for SSE-based communication
+• Legacy endpoint, maintained for backward compatibility
+• Creates new MCP server instance per connection
+• Supports real-time bidirectional communication via SSE
+• Will be removed in future versions - use /mcp instead
+</endpoint>
+
+<important>
+All new development should target the /mcp StreamableHTTP endpoint.
+The /sse endpoint is deprecated and will be removed in a future release.
+</important>
+</endpoints>
+
+<session_management>
+• Sessions identified by UUID in Mcp-Session-Id header
+• Session TTL: 15 minutes of inactivity
+• Server instances persist across requests in same session
+• Automatic garbage collection of expired sessions
+• New session created on initialize or unknown session ID
+• Session ID returned in all response headers
+</session_management>
+
+<streamable_http_protocol>
+<protocol_requirements>
+• GET requests must return 405 (SSE not supported) or implement SSE
+• POST requests handle JSON-RPC 2.0 messages
+• OPTIONS requests handle CORS preflight
+• Mcp-Session-Id header maintains session continuity
+• Notifications (no id field) return HTTP 202 with empty body
+• Regular requests (with id) return HTTP 200 with JSON-RPC response
+</protocol_requirements>
+
+<critical_implementation_details>
+• Session MUST be created/resumed BEFORE processing request
+• Dynamic tools MUST be registered synchronously during server creation
+• Single McpServer instance MUST be reused for entire session
+• Transport reconnection happens on each request (stateless HTTP)
+• Notification handling MUST NOT wait for response
+</critical_implementation_details>
+
+<debugging_tips>
+• Check Mcp-Session-Id is present in all responses
+• Verify sessions.get(sid) returns existing session
+• Ensure initialize creates new session with fresh UUID
+• Monitor session garbage collection with gcSessions()
+• Log session creation/reuse for troubleshooting
+</debugging_tips>
+</streamable_http_protocol>
 
 <conventions>
 • Use async/await for all API calls
