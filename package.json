@@ -14,7 +14,9 @@
 	"bin": {
 		"mcp-server-microfn": "dist/index.js"
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "tsc && shx chmod +x dist/*.js",
 		"prepare": "npm run build",
@@ -28,7 +30,7 @@
 		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@cloudflare/workers-oauth-provider": "^0.0.5",
+		"@cloudflare/workers-oauth-provider": "^0.0.6",
 		"@modelcontextprotocol/sdk": "^1.12.0",
 		"agents": "^0.0.92",
 		"hono": "^4.7.10",
@@ -38,7 +40,7 @@
 		"zod": "^3.25.16"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
+		"@biomejs/biome": "^2.1.2",
 		"@types/node": "^22.15.21",
 		"shx": "^0.3.4",
 		"typescript": "^5.8.3",

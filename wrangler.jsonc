@@ -64,7 +64,8 @@
 		"AUTH0_REDIRECT_URI_DEV": "http://localhost:8787/callback",
 		"API_BASE_URL": "https://microfn.dev/api",
 		"AUTH0_SCOPE": "openid email profile offline_access",
-		"NODE_ENV": "development"
+		"NODE_ENV": "development",
+		"MCP_SERVER_URL": "https://mcp.microfn.dev"
 	},
 	/**
 	 * Note: Use secrets to store sensitive data.
@@ -92,6 +93,7 @@
 
 	/**
 	 * Custom Routes
+	 * Only used in production, not in local dev
 	 */
-	"routes": ["mcp.microfn.dev/*"]
+	// "routes": ["mcp.microfn.dev/*"]
 }

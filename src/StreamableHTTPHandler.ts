@@ -147,6 +147,19 @@ export class StreamableHTTPHandler {
 	) {}
 
 	async handle(request: Request, executionContext: ExecutionContext): Promise<Response> {
+		// Handle CORS preflight requests
+		if (request.method === "OPTIONS") {
+			return new Response(null, {
+				status: 204,
+				headers: {
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					"Access-Control-Max-Age": "86400",
+				},
+			});
+		}
+
 		try {
 			console.log("[StreamableHTTP] Handle called with userProps:", {
 				hasTokenSet: !!this.userProps.tokenSet,
@@ -204,6 +217,9 @@ export class StreamableHTTPHandler {
 					{
 						headers: {
 							"Content-Type": "application/json",
+							"Access-Control-Allow-Origin": "*",
+							"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+							"Access-Control-Allow-Headers": "Content-Type, Authorization",
 						},
 					},
 				);
@@ -295,11 +311,21 @@ export class StreamableHTTPHandler {
 				return new Response(JSON.stringify(response), {
 					headers: {
 						"Content-Type": "application/json",
+						"Access-Control-Allow-Origin": "*",
+						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+						"Access-Control-Allow-Headers": "Content-Type, Authorization",
 					},
 				});
 			} else {
 				// No response (notification)
-				return new Response("", { status: 204 });
+				return new Response("", {
+					status: 204,
+					headers: {
+						"Access-Control-Allow-Origin": "*",
+						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+						"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					},
+				});
 			}
 		} catch (error) {
 			console.error("[StreamableHTTP] Error handling request:", error);
