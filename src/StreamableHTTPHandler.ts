@@ -3,6 +3,7 @@ import type { UserProps } from "./types.js";
 import type { Env } from "./index.js";
 import type { UserDataCacheStub } from "./UserDataCache.js";
 import type { JSONRPCMessage, JSONRPCRequest } from "@modelcontextprotocol/sdk/types.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 // Define a more flexible JSONRPCResponse type that handles both success and error cases
 type JSONRPCResponse = {
@@ -12,6 +13,20 @@ type JSONRPCResponse = {
 	| { result: any; error?: never }
 	| { error: { code: number; message: string; data?: any }; result?: never }
 );
+
+// Session management for stateful connections
+type Session = { server: McpServer; last: number };
+const sessions = new Map<string, Session>();
+const SESSION_TTL_MS = 15 * 60_000; // 15 minutes
+
+function gcSessions() {
+	const now = Date.now();
+	for (const [sid, s] of sessions) {
+		if (now - s.last > SESSION_TTL_MS) {
+			sessions.delete(sid);
+		}
+	}
+}
 
 /**
  * Simple JSON-RPC transport for Cloudflare Workers
@@ -24,6 +39,10 @@ class SimpleJSONRPCTransport {
 	private env?: Env;
 	private connectionState: "disconnected" | "connecting" | "connected" | "error" = "disconnected";
 	private startTime?: number;
+
+	// SSE support
+	private sseWriter?: WritableStreamDefaultWriter;
+	private sseClosed = false;
 
 	onmessage?: (message: JSONRPCMessage) => void;
 	onerror?: (error: Error) => void;
@@ -72,11 +91,23 @@ class SimpleJSONRPCTransport {
 			return;
 		}
 
-		// Store the response for the client
-		if ("id" in message && message.id !== null) {
-			if (this.responseResolver) {
-				this.responseResolver(message as JSONRPCResponse);
+		// If this is a server -> client notification (no id), emit over SSE if available
+		if (!("id" in message) || message.id === undefined || message.id === null) {
+			if (this.sseWriter && !this.sseClosed) {
+				const payload = `data: ${JSON.stringify(message)}\n\n`;
+				try {
+					await this.sseWriter.write(new TextEncoder().encode(payload));
+				} catch (e) {
+					console.log("[Transport] SSE write failed:", e);
+					this.sseClosed = true;
+				}
 			}
+			return;
+		}
+
+		// Otherwise it is a response to a request
+		if (this.responseResolver) {
+			this.responseResolver(message as JSONRPCResponse);
 		}
 	}
 
@@ -150,13 +181,18 @@ export class StreamableHTTPHandler {
 	async handle(request: Request, executionContext: ExecutionContext): Promise<Response> {
 		// Handle CORS preflight requests
 		if (request.method === "OPTIONS") {
+			const origin = request.headers.get("Origin") || "*";
+			const acrh =
+				request.headers.get("Access-Control-Request-Headers") ||
+				"Content-Type, Authorization, Accept, Mcp-Session-Id";
 			return new Response(null, {
 				status: 204,
 				headers: {
-					"Access-Control-Allow-Origin": "*",
-					"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-					"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					"Access-Control-Allow-Origin": origin,
+					"Access-Control-Allow-Methods": "POST, OPTIONS",
+					"Access-Control-Allow-Headers": acrh,
 					"Access-Control-Max-Age": "86400",
+					Vary: "Origin, Access-Control-Request-Headers",
 				},
 			});
 		}
@@ -206,24 +242,15 @@ export class StreamableHTTPHandler {
 			);
 			console.log("[StreamableHTTP] ID token prefix:", apiToken.substring(0, 10) + "...");
 
-			// Handle GET requests to establish session
+			// Streamable HTTP spec: GET must be SSE or 405. We return 405 here.
 			if (request.method === "GET") {
-				// Return a simple response indicating the session is established
-				return new Response(
-					JSON.stringify({
-						message: "MCP streamable-http endpoint ready",
-						authenticated: true,
-						user: this.userProps.claims?.email,
-					}),
-					{
-						headers: {
-							"Content-Type": "application/json",
-							"Access-Control-Allow-Origin": "*",
-							"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-							"Access-Control-Allow-Headers": "Content-Type, Authorization",
-						},
+				return new Response("SSE not supported on this endpoint", {
+					status: 405,
+					headers: {
+						Allow: "POST, OPTIONS",
+						"Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
 					},
-				);
+				});
 			}
 
 			// Only handle POST requests with JSON-RPC payloads
@@ -261,6 +288,9 @@ export class StreamableHTTPHandler {
 				);
 			}
 
+			// Get session ID from header
+			const reqSid = request.headers.get("Mcp-Session-Id") || undefined;
+
 			// Validate JSON-RPC request
 			if (!body.jsonrpc || body.jsonrpc !== "2.0" || !body.method) {
 				return new Response(
@@ -286,62 +316,83 @@ export class StreamableHTTPHandler {
 				hasParams: !!body.params,
 				params: body.params,
 				id: body.id,
+				hasSessionId: !!reqSid,
 			});
 			console.log("[StreamableHTTP] Full request body:", JSON.stringify(body));
 
-			// Create transport
-			const transport = new SimpleJSONRPCTransport(this.env);
+			// Create or resume the session **before** delivering the message
+			let sid = reqSid;
+			let session = sid ? sessions.get(sid) : undefined;
 
-			// Start transport (establish connection state)
-			await transport.start();
+			if (!session || body.method === "initialize") {
+				// Fresh session on first initialize or if unknown sid
+				const userId = this.userProps.claims?.sub || this.userProps.claims?.email;
+				const userCacheDO =
+					userId && this.env.USER_DATA_CACHE
+						? (this.env.USER_DATA_CACHE.get(
+								this.env.USER_DATA_CACHE.idFromName(userId),
+							) as unknown as UserDataCacheStub)
+						: undefined;
 
-			// Get user-specific cache Durable Object
-			let userCacheDO: UserDataCacheStub | undefined;
-			const userId = this.userProps.claims?.sub || this.userProps.claims?.email;
-			if (userId && this.env.USER_DATA_CACHE) {
-				console.log("[StreamableHTTP] Getting user cache for:", userId);
-				const cacheId = this.env.USER_DATA_CACHE.idFromName(userId);
-				userCacheDO = this.env.USER_DATA_CACHE.get(cacheId) as unknown as UserDataCacheStub;
+				const server = await createMcpServer(
+					apiToken,
+					this.userProps,
+					this.env,
+					undefined,
+					undefined,
+					userCacheDO,
+				);
+
+				sid = crypto.randomUUID();
+				session = { server, last: Date.now() };
+				sessions.set(sid, session);
+				console.log("[StreamableHTTP] Created new session:", sid);
+			}
+			session.last = Date.now();
+			gcSessions();
+
+			// Base headers for all responses
+			const baseHeaders = {
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
+				"Access-Control-Allow-Methods": "POST, OPTIONS",
+				"Access-Control-Allow-Headers":
+					request.headers.get("Access-Control-Request-Headers") ||
+					"Content-Type, Authorization, Accept, Mcp-Session-Id",
+				"Mcp-Session-Id": sid!, // Important: include session ID
+				Vary: "Origin, Access-Control-Request-Headers",
+			};
+
+			// If it's a JSON-RPC notification, deliver it and return 202 immediately
+			if (!("id" in body) || body.id === undefined || body.id === null) {
+				const transport = new SimpleJSONRPCTransport(this.env);
+				await transport.start();
+				await session!.server.connect(transport);
+				// Deliver to server without waiting for any response
+				transport.onmessage?.(body as JSONRPCRequest);
+				console.log("[StreamableHTTP] Handled notification:", body.method);
+				return new Response(null, {
+					status: 202,
+					headers: { ...baseHeaders },
+				});
 			}
 
-			// Create server instance for this request
-			const server = await createMcpServer(
-				apiToken,
-				this.userProps,
-				this.env,
-				undefined, // updateToolsCallback
-				undefined, // workspaceCache
-				userCacheDO, // user cache DO
-			);
-
-			// Connect server to transport
-			await server.connect(transport);
-
-			// Handle the request and get response
+			// Handle regular request with response
+			const transport = new SimpleJSONRPCTransport(this.env);
+			await transport.start();
+			await session!.server.connect(transport);
 			const response = await transport.handleRequest(body);
-
-			// Close the transport
-			await transport.close();
 
 			// Return the response
 			if (response) {
 				return new Response(JSON.stringify(response), {
-					headers: {
-						"Content-Type": "application/json",
-						"Access-Control-Allow-Origin": "*",
-						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-						"Access-Control-Allow-Headers": "Content-Type, Authorization",
-					},
+					headers: { ...baseHeaders },
 				});
 			} else {
-				// No response (notification)
+				// Shouldn't happen for requests with ID, but handle gracefully
 				return new Response("", {
 					status: 204,
-					headers: {
-						"Access-Control-Allow-Origin": "*",
-						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-						"Access-Control-Allow-Headers": "Content-Type, Authorization",
-					},
+					headers: { ...baseHeaders },
 				});
 			}
 		} catch (error) {
@@ -376,6 +427,12 @@ export class StreamableHTTPHandler {
 						status: 200, // Use 200 for JSON-RPC errors
 						headers: {
 							"Content-Type": "application/json",
+							"Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
+							"Access-Control-Allow-Methods": "POST, OPTIONS",
+							"Access-Control-Allow-Headers":
+								request.headers.get("Access-Control-Request-Headers") ||
+								"Content-Type, Authorization, Accept, Mcp-Session-Id",
+							Vary: "Origin, Access-Control-Request-Headers",
 						},
 					},
 				);
@@ -395,6 +452,12 @@ export class StreamableHTTPHandler {
 					status: 500,
 					headers: {
 						"Content-Type": "application/json",
+						"Access-Control-Allow-Origin": request.headers.get("Origin") || "*",
+						"Access-Control-Allow-Methods": "POST, OPTIONS",
+						"Access-Control-Allow-Headers":
+							request.headers.get("Access-Control-Request-Headers") ||
+							"Content-Type, Authorization, Accept, Mcp-Session-Id",
+						Vary: "Origin, Access-Control-Request-Headers",
 					},
 				},
 			);

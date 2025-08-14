@@ -3,105 +3,105 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-    "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "mcp-server-microfn",
-    "main": "src/index.ts",
-    "compatibility_date": "2025-03-10",
-    "compatibility_flags": ["nodejs_compat"],
-    "observability": {
-        "enabled": true,
-    },
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "mcp-server-microfn",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
 
-    /**
-     * Durable Objects for MCP sessions
-     */
-    "migrations": [
-        {
-            "tag": "v1",
-            "new_sqlite_classes": ["AuthenticatedMCP"],
-        },
-        {
-            "tag": "v2",
-            "new_sqlite_classes": ["UserDataCache"],
-        },
-    ],
-    "durable_objects": {
-        "bindings": [
-            {
-                "name": "MCP_OBJECT",
-                "class_name": "AuthenticatedMCP",
-            },
-            {
-                "name": "USER_DATA_CACHE",
-                "class_name": "UserDataCache",
-            },
-        ],
-    },
+	/**
+	 * Durable Objects for MCP sessions
+	 */
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["AuthenticatedMCP"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["UserDataCache"]
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MCP_OBJECT",
+				"class_name": "AuthenticatedMCP"
+			},
+			{
+				"name": "USER_DATA_CACHE",
+				"class_name": "UserDataCache"
+			}
+		]
+	},
 
-    /**
-     * KV namespace for OAuth state
-     */
-    "kv_namespaces": [
-        {
-            "binding": "OAUTH_KV",
-            "id": "d5a49e5b1bea43fc9c5f9a8106f83a7f",
-        },
-    ],
+	/**
+	 * KV namespace for OAuth state
+	 */
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "d5a49e5b1bea43fc9c5f9a8106f83a7f"
+		}
+	],
 
-    /**
-     * Smart Placement
-     * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-     */
-    // "placement": { "mode": "smart" },
+	/**
+	 * Smart Placement
+	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	// "placement": { "mode": "smart" },
 
-    /**
-     * Bindings
-     * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-     * databases, object storage, AI inference, real-time communication and more.
-     * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-     */
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
 
-    /**
-     * Environment Variables
-     * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-     */
-    "vars": {
-        "AUTH0_DOMAIN": "dev-7y4mttzmcid8vp1q.us.auth0.com",
-        "AUTH0_CLIENT_ID": "MjLugXzho9IU9DJxW6GeeD3pb96F11Fc",
-        "AUTH0_REDIRECT_URI": "https://mcp.microfn.dev/callback",
-        "AUTH0_REDIRECT_URI_DEV": "http://localhost:8787/callback",
-        "API_BASE_URL": "https://microfn.dev/api",
-        "AUTH0_SCOPE": "openid email profile offline_access",
-        "NODE_ENV": "development",
-        "MCP_SERVER_URL": "https://mcp.microfn.dev",
-    },
-    /**
-     * Note: Use secrets to store sensitive data.
-     * https://developers.cloudflare.com/workers/configuration/secrets/
-     */
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 */
+	"vars": {
+		"AUTH0_DOMAIN": "dev-7y4mttzmcid8vp1q.us.auth0.com",
+		"AUTH0_CLIENT_ID": "MjLugXzho9IU9DJxW6GeeD3pb96F11Fc",
+		"AUTH0_REDIRECT_URI": "https://mcp.microfn.dev/callback",
+		"AUTH0_REDIRECT_URI_DEV": "http://localhost:8787/callback",
+		"API_BASE_URL": "https://microfn.dev/api",
+		"AUTH0_SCOPE": "openid email profile offline_access",
+		"NODE_ENV": "development",
+		"MCP_SERVER_URL": "https://mcp.microfn.dev"
+	},
+	/**
+	 * Note: Use secrets to store sensitive data.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
 
-    /**
-     * Development configuration
-     */
-    "dev": {
-        "port": 8787,
-    },
+	/**
+	 * Development configuration
+	 */
+	"dev": {
+		"port": 8787
+	}
 
-    /**
-     * Static Assets
-     * https://developers.cloudflare.com/workers/static-assets/binding/
-     */
-    // "assets": { "directory": "./public/", "binding": "ASSETS" },
+	/**
+	 * Static Assets
+	 * https://developers.cloudflare.com/workers/static-assets/binding/
+	 */
+	// "assets": { "directory": "./public/", "binding": "ASSETS" },
 
-    /**
-     * Service Bindings (communicate between multiple Workers)
-     * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-     */
-    // "services": [{ "binding": "MY_SERVICE", "service": "my-service" }],
+	/**
+	 * Service Bindings (communicate between multiple Workers)
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 */
+	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }],
 
-    /**
-     * Custom Routes
-     * Only used in production, not in local dev
-     */
-    // "routes": ["mcp.microfn.dev/*"]
+	/**
+	 * Custom Routes
+	 * Only used in production, not in local dev
+	 */
+	// "routes": ["mcp.microfn.dev/*"]
 }
