@@ -855,7 +855,7 @@ export async function createMcpServer(
 
             let workspaces: Workspace[] = [];
 
-            // Try cache first if available
+            // Try cache first if available for immediate use
             if (userCacheDO) {
                 console.log("[mcpServerFactory] Checking cache for functions");
                 const cached = await userCacheDO.getFunctions();
@@ -868,21 +868,45 @@ export async function createMcpServer(
                 }
             }
 
-            // Fetch from API if no cache hit
-            if (workspaces.length === 0) {
-                console.log("[mcpServerFactory] Fetching functions from API");
-                const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
-                workspaces = await client.listWorkspaces();
+            // Always fetch from API to get latest data and update cache
+            // This happens after using cache, so we get immediate availability + fresh data
+            const fetchAndUpdateCache = async () => {
+                try {
+                    console.log("[mcpServerFactory] Fetching latest functions from API");
+                    const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
+                    const latestWorkspaces = await client.listWorkspaces();
 
-                // Update cache if available
-                if (userCacheDO) {
-                    console.log(
-                        "[mcpServerFactory] Updating cache with",
-                        workspaces.length,
-                        "functions",
-                    );
-                    await userCacheDO.setFunctions(workspaces);
+                    // Update cache with fresh data
+                    if (userCacheDO) {
+                        console.log(
+                            "[mcpServerFactory] Updating cache with",
+                            latestWorkspaces.length,
+                            "functions",
+                        );
+                        await userCacheDO.setFunctions(latestWorkspaces);
+                    }
+
+                    // If we didn't have cached data, use the fresh data for registration
+                    if (workspaces.length === 0) {
+                        workspaces = latestWorkspaces;
+                    }
+                } catch (error) {
+                    console.error("[mcpServerFactory] Failed to fetch latest functions:", error);
+                    // If fetch fails and we have no cached data, throw
+                    if (workspaces.length === 0) {
+                        throw error;
+                    }
+                    // Otherwise continue with cached data
                 }
+            };
+
+            // Start the fetch but don't wait if we have cache
+            if (workspaces.length > 0) {
+                // We have cache, fetch in background
+                fetchAndUpdateCache().catch(console.error);
+            } else {
+                // No cache, must wait for fetch
+                await fetchAndUpdateCache();
             }
 
             console.log(
