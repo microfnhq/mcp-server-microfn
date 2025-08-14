@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { UserProps } from "./types.js";
 import { functionIdentifierSchema } from "./types.js";
@@ -27,6 +28,73 @@ import { handleUpdatePackage } from "./tools/updatePackage.js";
 import { handleUpdatePackageLayer } from "./tools/updatePackageLayer.js";
 
 /**
+ * Updates tool descriptions with the list of available functions
+ */
+function updateToolDescriptions(
+    workspaces: Workspace[],
+    toolRefs: Map<string, RegisteredTool>,
+) {
+    console.log(
+        "[mcpServerFactory] Updating tool descriptions with",
+        workspaces.length,
+        "workspaces",
+    );
+
+    if (workspaces.length === 0) {
+        console.log(
+            "[mcpServerFactory] No workspaces to update descriptions with",
+        );
+        return;
+    }
+
+    // Format function list with username/functionName pattern
+    const functionList = workspaces
+        .map((ws) => {
+            const identifier = ws.Account?.username
+                ? `${ws.Account?.username}/${ws.name}`
+                : ws.name;
+            return `  - ${identifier}`;
+        })
+        .join("\n");
+
+    // Update executeFunction tool
+    const executeTool = toolRefs.get("executeFunction");
+    if (executeTool) {
+        const newDesc = `Execute a function with given input. Requires functionName (format: 'username/functionName') and optional inputData parameters.\n\nAvailable functions:\n${functionList}`;
+        console.log("[mcpServerFactory] Updating executeFunction description");
+        executeTool.update({ description: newDesc });
+    }
+
+    // Update getFunctionCode tool
+    const getCodeTool = toolRefs.get("getFunctionCode");
+    if (getCodeTool) {
+        const newDesc = `Get the source code of a function. Requires functionName parameter in format 'username/functionName'.\n\nAvailable functions:\n${functionList}`;
+        console.log("[mcpServerFactory] Updating getFunctionCode description");
+        getCodeTool.update({ description: newDesc });
+    }
+
+    // Update updateFunctionCode tool
+    const updateCodeTool = toolRefs.get("updateFunctionCode");
+    if (updateCodeTool) {
+        const newDesc = `Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Requires functionName (format: 'username/functionName') and code parameters.\n\nAvailable functions:\n${functionList}`;
+        console.log(
+            "[mcpServerFactory] Updating updateFunctionCode description",
+        );
+        updateCodeTool.update({ description: newDesc });
+    }
+
+    // Update listPackages tool
+    const listPackagesTool = toolRefs.get("listPackages");
+    if (listPackagesTool) {
+        const newDesc = `Lists all npm packages installed for a function. Requires functionName parameter in format 'username/functionName'.\n\nAvailable functions:\n${functionList}`;
+        console.log("[mcpServerFactory] Updating listPackages description");
+        listPackagesTool.update({ description: newDesc });
+    }
+
+    console.log("[mcpServerFactory] Tool descriptions updated");
+}
+
+/**
  * Creates and configures an MCP server instance with all MicroFn tools
  * This factory is shared between SSE and Streamable-HTTP transports
  */
@@ -51,7 +119,7 @@ export async function createMcpServer(
         version: "1.0.0",
     });
 
-    const toolRefs = new Map<string, any>();
+    const toolRefs = new Map<string, RegisteredTool>();
 
     // Debug tool to show current user info
     server.tool(
@@ -362,7 +430,7 @@ export async function createMcpServer(
     toolRefs.set("getFunctionCode", getFunctionCodeTool);
 
     // Update function code
-    server.tool(
+    const updateFunctionCodeTool = server.tool(
         "updateFunctionCode",
         "Update the source code of a function. The code can export either: 1) A 'main' function directly, OR 2) Any named function (auto-wrapped). Examples: Bitcoin price fetcher: 'export async function main() { const res = await fetch(\"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd\"); return { price_usd: (await res.json()).bitcoin.usd }; }'. With KV counter: 'import kv from \"@microfn/kv\"; export async function main() { const count = (await kv.get(\"visits\")) || 0; await kv.set(\"visits\", count + 1); return { visits: count + 1 }; }'. IMPORTANT: Always use default imports for @microfn/* modules. If converting existing code, use 'rewriteFunction' tool first. Requires functionName (format: 'username/functionName') and code parameters.",
         {
@@ -402,9 +470,10 @@ export async function createMcpServer(
             }
         },
     );
+    toolRefs.set("updateFunctionCode", updateFunctionCodeTool);
 
     // List packages
-    server.tool(
+    const listPackagesTool = server.tool(
         "listPackages",
         "Lists all npm packages installed for a function. Requires functionName parameter in format 'username/functionName'.",
         {
@@ -439,6 +508,7 @@ export async function createMcpServer(
             }
         },
     );
+    toolRefs.set("listPackages", listPackagesTool);
 
     // Install package
     server.tool(
@@ -865,6 +935,8 @@ export async function createMcpServer(
                         "[mcpServerFactory] Using cached functions:",
                         cached.length,
                     );
+                    // Update tool descriptions with cached workspaces
+                    updateToolDescriptions(cached, toolRefs);
                 }
             }
 
@@ -872,8 +944,13 @@ export async function createMcpServer(
             // This happens after using cache, so we get immediate availability + fresh data
             const fetchAndUpdateCache = async () => {
                 try {
-                    console.log("[mcpServerFactory] Fetching latest functions from API");
-                    const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
+                    console.log(
+                        "[mcpServerFactory] Fetching latest functions from API",
+                    );
+                    const client = new MicroFnApiClient(
+                        apiToken,
+                        env.API_BASE_URL,
+                    );
                     const latestWorkspaces = await client.listWorkspaces();
 
                     // Update cache with fresh data
@@ -886,12 +963,18 @@ export async function createMcpServer(
                         await userCacheDO.setFunctions(latestWorkspaces);
                     }
 
+                    // Update tool descriptions with fresh data
+                    updateToolDescriptions(latestWorkspaces, toolRefs);
+
                     // If we didn't have cached data, use the fresh data for registration
                     if (workspaces.length === 0) {
                         workspaces = latestWorkspaces;
                     }
                 } catch (error) {
-                    console.error("[mcpServerFactory] Failed to fetch latest functions:", error);
+                    console.error(
+                        "[mcpServerFactory] Failed to fetch latest functions:",
+                        error,
+                    );
                     // If fetch fails and we have no cached data, throw
                     if (workspaces.length === 0) {
                         throw error;
@@ -917,8 +1000,8 @@ export async function createMcpServer(
             workspaces.forEach((workspace) => {
                 if (workspace.mcpToolEnabled) {
                     const toolName = `fn_${workspace.name}`;
-                    const functionIdentifier = workspace.username
-                        ? `${workspace.username}/${workspace.name}`
+                    const functionIdentifier = workspace.Account?.username
+                        ? `${workspace.Account?.username}/${workspace.name}`
                         : workspace.name;
 
                     server.tool(
@@ -933,6 +1016,10 @@ export async function createMcpServer(
                         }, // Empty params for now - will be extended later
                         async () => {
                             try {
+                                console.log(
+                                    "executing fn ",
+                                    functionIdentifier,
+                                );
                                 const result = await handleExecuteFunction(
                                     apiToken,
                                     {
