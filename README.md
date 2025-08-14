@@ -5,7 +5,7 @@ Remote MCP server for interacting with the microfn platform
 ## Setup as remote MCP (eg Claude)
 
 1. Open remote MCP / integrations page
-2. Set `https://mcp.microfn.dev/sse` as URL for the remote MCP
+2. Set `https://mcp.microfn.dev/mcp` as URL for the remote MCP
 
 ## Setup in local MCP clients
 
@@ -16,13 +16,16 @@ Remote MCP server for interacting with the microfn platform
   "mcpServers": {
     "microfn": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.microfn.dev/sse"]
+      "args": ["-y", "mcp-remote", "https://mcp.microfn.dev/mcp"]
     }
   }
 }
 ```
 
 This will prompt you to authenticate with microfn
+
+- Use `https://mcp.microfn.dev/mcp` for Streamable HTTP
+- Use `https://mcp.microfn.dev/sse` for SSE (will be phased out)
 
 ## Local Development
 
