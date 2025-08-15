@@ -932,7 +932,7 @@ export async function createMcpServer(
 						apiToken,
 						{
 							functionName: functionIdentifier,
-							inputData: {},
+							inputData: input, // Pass actual input arguments
 						},
 						env,
 						{} as ExecutionContext,
@@ -985,15 +985,48 @@ export async function createMcpServer(
 
 			// 2) Always fetch latest, update cache, update descriptions, and register any new tools
 			const client = new MicroFnApiClient(apiToken, env.API_BASE_URL, env);
-			const latest = await client.listWorkspaces();
-			if (userCacheDO) {
-				await userCacheDO.setFunctions(latest);
-			}
-			updateToolDescriptions(latest, toolRefs);
-			const newlyRegistered = await registerFnTools(latest);
+			// Give bootstrap discovery a safe window and no outer signal
+			const bootstrapTimeout = (env as any).MCP_BOOT_TIMEOUT_MS ?? 20000;
 			console.log(
-				`[mcpServerFactory] Dynamic registration complete. Latest functions: ${latest.length}, newly registered: ${newlyRegistered}`,
+				`[mcpServerFactory] Fetching workspaces with ${bootstrapTimeout}ms timeout`,
 			);
+
+			const latest = await client
+				.listWorkspaces({ timeoutMs: bootstrapTimeout, signal: undefined })
+				.catch((e) => {
+					console.error("[mcpServerFactory] listWorkspaces failed:", e?.message ?? e);
+					return undefined;
+				});
+
+			// Use latest if available, else keep relying on cache
+			if (Array.isArray(latest) && latest.length > 0) {
+				console.log(`[mcpServerFactory] Got ${latest.length} workspaces from API`);
+				if (userCacheDO) {
+					await userCacheDO.setFunctions(latest);
+				}
+				updateToolDescriptions(latest, toolRefs);
+				const newlyRegistered = await registerFnTools(latest);
+				console.log(
+					`[mcpServerFactory] Dynamic registration complete. Latest functions: ${latest.length}, newly registered: ${newlyRegistered}`,
+				);
+			} else if (userCacheDO) {
+				// Fall back to cached functions if latest fetch failed
+				const cached = await userCacheDO.getFunctions();
+				if (Array.isArray(cached) && cached.length > 0) {
+					console.log(
+						"[mcpServerFactory] Falling back to cached functions:",
+						cached.length,
+					);
+					updateToolDescriptions(cached, toolRefs);
+					await registerFnTools(cached);
+				} else {
+					console.log(
+						"[mcpServerFactory] No workspaces available (neither fresh nor cached)",
+					);
+				}
+			} else {
+				console.log("[mcpServerFactory] No workspaces fetched and no cache available");
+			}
 		} catch (error) {
 			console.error("[mcpServerFactory] Failed to register dynamic tools:", error);
 			// Don't throw - we don't want to break server creation if this fails
@@ -1002,6 +1035,11 @@ export async function createMcpServer(
 
 	// Perform registration synchronously to avoid races with tools/list
 	await registerDynamicTools();
+
+	// Log registered tools for debugging
+	const registeredTools = Array.from((server as any).tools?.keys?.() ?? []);
+	console.log("[mcpServerFactory] Registered tools pre-connect:", registeredTools);
+	console.log("[mcpServerFactory] Total tools count:", registeredTools.length);
 
 	return server;
 }

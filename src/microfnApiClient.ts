@@ -115,15 +115,31 @@ export class MicroFnApiClient {
 		});
 	}
 
-	private remainingMs(): number {
+	private remainingMs(opts?: { timeoutMs?: number }): number {
+		// Use explicit timeout if provided
+		if (opts?.timeoutMs) {
+			return opts.timeoutMs;
+		}
+		// Use request deadline if available
 		const dl = this.env?.__CURRENT_DEADLINE_TS as number | undefined;
-		return dl ? Math.max(1, dl - Date.now()) : 5000;
+		if (dl) {
+			return Math.max(1, dl - Date.now());
+		}
+		// Default to 20 seconds for bootstrap operations
+		return (this.env as any)?.MCP_DEFAULT_FETCH_TIMEOUT_MS ?? 20000;
 	}
 
-	private async fetchWithAbort(url: string, init: RequestInit): Promise<Response> {
-		const outerSignal = this.env?.__CURRENT_ABORT_SIGNAL as AbortSignal | undefined;
+	private async fetchWithAbort(
+		url: string,
+		init: RequestInit,
+		opts?: { timeoutMs?: number; signal?: AbortSignal },
+	): Promise<Response> {
+		// Use explicit signal if provided, otherwise use request context
+		const outerSignal =
+			opts?.signal ?? (this.env?.__CURRENT_ABORT_SIGNAL as AbortSignal | undefined);
 		const ctrl = new AbortController();
-		const timer = setTimeout(() => ctrl.abort("deadline"), this.remainingMs());
+		const timeoutMs = this.remainingMs(opts);
+		const timer = setTimeout(() => ctrl.abort("deadline"), timeoutMs);
 
 		if (outerSignal) {
 			outerSignal.addEventListener("abort", () => ctrl.abort("transport-timeout"), {
@@ -328,17 +344,24 @@ export class MicroFnApiClient {
 		return data.workspace || ({} as Workspace);
 	}
 
-	async listWorkspaces(): Promise<Workspace[]> {
+	async listWorkspaces(opts?: {
+		timeoutMs?: number;
+		signal?: AbortSignal;
+	}): Promise<Workspace[]> {
 		// Validate token before making the request
 		this.validateToken();
 
 		const url = `${this.baseUrl}/workspaces`;
-		console.log("[MicroFnApiClient] GET", url);
+		console.log("[MicroFnApiClient] GET", url, opts ? `(timeout: ${opts.timeoutMs}ms)` : "");
 
-		const res = await this.fetchWithAbort(url, {
-			method: "GET",
-			headers: this.getHeaders(),
-		});
+		const res = await this.fetchWithAbort(
+			url,
+			{
+				method: "GET",
+				headers: this.getHeaders(),
+			},
+			opts,
+		);
 
 		console.log("[MicroFnApiClient] Response:", res.status, res.statusText);
 		if (!res.ok) {

@@ -502,6 +502,19 @@ export class StreamableHTTPHandler {
 					const transport = new SimpleJSONRPCTransport(this.env, sid);
 					await transport.start();
 					await server.connect(transport);
+
+					// Notify client about tool list after connect
+					try {
+						await (server as any).server?.sendToolListChanged?.();
+						console.log("[StreamableHTTP] Notified tool list changed after connect");
+					} catch (e) {
+						console.log("[StreamableHTTP] Tool list change notify not available:", e);
+					}
+
+					// Log registered tools for debugging
+					const tools = Array.from((server as any).tools?.keys?.() ?? []);
+					console.log("[StreamableHTTP] Registered tools post-connect:", tools);
+
 					return { server, transport, last: Date.now() } as Session;
 				});
 			}
