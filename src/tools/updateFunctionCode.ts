@@ -26,7 +26,7 @@ export async function handleUpdateFunctionCode(
 	ctx: ExecutionContext,
 ): Promise<UpdateFunctionCodeResponse> {
 	const { username, functionName: funcName } = parseFunctionName(params.functionName);
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 	try {
 		const data = await client.updateFunctionCode(username, funcName, params.code);
 		return {

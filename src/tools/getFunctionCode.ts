@@ -24,7 +24,7 @@ export async function handleGetFunctionCode(
 	ctx: ExecutionContext,
 ): Promise<GetFunctionCodeResponse> {
 	const { username, functionName: funcName } = parseFunctionName(req.functionName);
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 	try {
 		const result = await client.getFunctionCode(username, funcName);
 		return { code: result.code };

@@ -28,7 +28,7 @@ export async function handleListPackages(
 	try {
 		const { username, functionName: funcName } = parseFunctionName(req.functionName);
 
-		const client = new MicroFnApiClient(token, env.API_BASE_URL);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 		const packages = await client.listPackages(username, funcName);
 		return { success: true, packages };
 	} catch (error: any) {

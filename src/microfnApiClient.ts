@@ -18,6 +18,25 @@ export interface Workspace {
 		name: string;
 		username: string;
 	};
+
+	latestDeployment?: {
+		id: string;
+		status: string;
+		createdAt: string;
+		hash: string;
+		signature?: {
+			name: string;
+			params: string[];
+			async: boolean;
+			comment: string;
+			parameterInfo: Array<{
+				name: string;
+				type: string;
+				required: boolean;
+				hasDefault: boolean;
+			}>;
+		};
+	};
 }
 
 export interface Secret {
@@ -81,17 +100,42 @@ export class MicroFnApiClient {
 	private apiToken: string;
 	private baseUrl: string;
 	private runBaseUrl: string;
+	private env?: any; // Store env for abort signal access
 
-	constructor(apiToken: string, baseUrl?: string) {
+	constructor(apiToken: string, baseUrl?: string, env?: any) {
 		this.apiToken = apiToken;
 		this.runBaseUrl = baseUrl?.replace("/api", "") || "https://microfn.dev";
 		this.baseUrl = baseUrl || `${this.runBaseUrl}/api`;
+		this.env = env;
 		console.log("[MicroFnApiClient] Initialized:", {
 			baseUrl: this.baseUrl,
 			runBaseUrl: this.runBaseUrl,
 			hasToken: !!apiToken,
 			tokenType: apiToken.startsWith("mfn_") ? "PAT" : "Auth0 ID Token",
 		});
+	}
+
+	private remainingMs(): number {
+		const dl = this.env?.__CURRENT_DEADLINE_TS as number | undefined;
+		return dl ? Math.max(1, dl - Date.now()) : 5000;
+	}
+
+	private async fetchWithAbort(url: string, init: RequestInit): Promise<Response> {
+		const outerSignal = this.env?.__CURRENT_ABORT_SIGNAL as AbortSignal | undefined;
+		const ctrl = new AbortController();
+		const timer = setTimeout(() => ctrl.abort("deadline"), this.remainingMs());
+
+		if (outerSignal) {
+			outerSignal.addEventListener("abort", () => ctrl.abort("transport-timeout"), {
+				once: true,
+			});
+		}
+
+		try {
+			return await fetch(url, { ...init, signal: ctrl.signal });
+		} finally {
+			clearTimeout(timer);
+		}
 	}
 
 	private validateToken(): void {
@@ -142,7 +186,7 @@ export class MicroFnApiClient {
 		const url = `${this.baseUrl}/workspaces/${username}/${functionName}/packages`;
 		console.log("[MicroFnApiClient] GET", url);
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -163,11 +207,14 @@ export class MicroFnApiClient {
 		version?: string,
 	): Promise<{ name: string; version: string }> {
 		const body = { name: packageName, version };
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/packages`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify(body),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/packages`,
+			{
+				method: "POST",
+				headers: this.getHeaders(),
+				body: JSON.stringify(body),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to install package: ${res.statusText}`);
 		const data = (await res.json()) as {
 			package?: { name: string; version: string };
@@ -182,7 +229,7 @@ export class MicroFnApiClient {
 		version?: string,
 	): Promise<{ name: string; version: string }> {
 		const body = { version };
-		const res = await fetch(
+		const res = await this.fetchWithAbort(
 			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "PUT",
@@ -202,7 +249,7 @@ export class MicroFnApiClient {
 		functionName: string,
 		packageName: string,
 	): Promise<void> {
-		const res = await fetch(
+		const res = await this.fetchWithAbort(
 			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/${encodeURIComponent(packageName)}`,
 			{
 				method: "DELETE",
@@ -216,7 +263,7 @@ export class MicroFnApiClient {
 		username: string,
 		functionName: string,
 	): Promise<{ message?: string }> {
-		const res = await fetch(
+		const res = await this.fetchWithAbort(
 			`${this.baseUrl}/workspaces/${username}/${functionName}/packages/update-layer`,
 			{
 				method: "POST",
@@ -231,7 +278,7 @@ export class MicroFnApiClient {
 	// Workspace (Function) Management
 
 	async createWorkspace(params: CreateWorkspaceParams): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces`, {
+		const res = await this.fetchWithAbort(`${this.baseUrl}/workspaces`, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({
@@ -249,11 +296,14 @@ export class MicroFnApiClient {
 		functionName: string,
 		params: UpdateWorkspaceParams,
 	): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/code`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify({ code: params.code }),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/code`,
+			{
+				method: "POST",
+				headers: this.getHeaders(),
+				body: JSON.stringify({ code: params.code }),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to update workspace: ${res.statusText}`);
 		return await res.json();
 	}
@@ -263,11 +313,14 @@ export class MicroFnApiClient {
 		functionName: string,
 		newName: string,
 	): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}`, {
-			method: "PATCH",
-			headers: this.getHeaders(),
-			body: JSON.stringify({ name: newName }),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}`,
+			{
+				method: "PATCH",
+				headers: this.getHeaders(),
+				body: JSON.stringify({ name: newName }),
+			},
+		);
 		if (!res.ok) {
 			throw new Error(`Failed to rename workspace: ${res.statusText}`);
 		}
@@ -282,7 +335,7 @@ export class MicroFnApiClient {
 		const url = `${this.baseUrl}/workspaces`;
 		console.log("[MicroFnApiClient] GET", url);
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -305,7 +358,7 @@ export class MicroFnApiClient {
 		const url = `${this.baseUrl}/workspaces/${username}/${functionName}/code`;
 		console.log("[MicroFnApiClient] GET", url);
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "GET",
 			headers: this.getHeaders(),
 		});
@@ -327,11 +380,14 @@ export class MicroFnApiClient {
 		functionName: string,
 		code: string,
 	): Promise<Workspace> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/code`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify({ code }),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/code`,
+			{
+				method: "POST",
+				headers: this.getHeaders(),
+				body: JSON.stringify({ code }),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to update function code: ${res.statusText}`);
 		return await res.json();
 	}
@@ -347,7 +403,7 @@ export class MicroFnApiClient {
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Input data:", JSON.stringify(inputData));
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify(inputData),
@@ -375,7 +431,7 @@ export class MicroFnApiClient {
 	// Deployments
 
 	async getLatestDeployment(username: string, functionName: string): Promise<Deployment> {
-		const res = await fetch(
+		const res = await this.fetchWithAbort(
 			`${this.baseUrl}/workspaces/${username}/${functionName}/deployments/latest`,
 			{
 				method: "GET",
@@ -390,10 +446,13 @@ export class MicroFnApiClient {
 	// Secrets Management
 
 	async listSecrets(username: string, functionName: string): Promise<Secret[]> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`, {
-			method: "GET",
-			headers: this.getHeaders(),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`,
+			{
+				method: "GET",
+				headers: this.getHeaders(),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to list secrets: ${res.statusText}`);
 		const data = (await res.json()) as { secrets?: Secret[] };
 		return data.secrets || [];
@@ -404,11 +463,14 @@ export class MicroFnApiClient {
 		functionName: string,
 		params: CreateSecretParams,
 	): Promise<Secret[]> {
-		const res = await fetch(`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`, {
-			method: "POST",
-			headers: this.getHeaders(),
-			body: JSON.stringify({ key: params.key, value: params.value }),
-		});
+		const res = await this.fetchWithAbort(
+			`${this.baseUrl}/workspaces/${username}/${functionName}/secrets`,
+			{
+				method: "POST",
+				headers: this.getHeaders(),
+				body: JSON.stringify({ key: params.key, value: params.value }),
+			},
+		);
 		if (!res.ok) throw new Error(`Failed to create secret: ${res.statusText}`);
 		const data = (await res.json()) as { secrets?: Secret[] };
 		return data.secrets || [];
@@ -426,7 +488,7 @@ export class MicroFnApiClient {
 	}
 
 	async deleteSecret(username: string, functionName: string, secretId: string): Promise<void> {
-		const res = await fetch(
+		const res = await this.fetchWithAbort(
 			`${this.baseUrl}/workspaces/${username}/${functionName}/secrets/${secretId}`,
 			{
 				method: "DELETE",
@@ -443,7 +505,7 @@ export class MicroFnApiClient {
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Prompt:", params.prompt);
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ prompt: params.prompt }),
@@ -466,7 +528,7 @@ export class MicroFnApiClient {
 		console.log("[MicroFnApiClient] POST", url);
 		console.log("[MicroFnApiClient] Code length:", params.code.length);
 
-		const res = await fetch(url, {
+		const res = await this.fetchWithAbort(url, {
 			method: "POST",
 			headers: this.getHeaders(),
 			body: JSON.stringify({ code: params.code }),

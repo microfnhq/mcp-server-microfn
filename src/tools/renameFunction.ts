@@ -26,7 +26,7 @@ export async function handleRenameFunction(
 	ctx: ExecutionContext,
 ): Promise<RenameFunctionResponse> {
 	const { username, functionName: funcName } = parseFunctionName(req.functionName);
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 	try {
 		const workspace = await client.renameWorkspace(username, funcName, req.newName);
 		return {

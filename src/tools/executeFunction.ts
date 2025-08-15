@@ -26,7 +26,7 @@ export async function handleExecuteFunction(
 	ctx: ExecutionContext,
 ): Promise<ExecuteFunctionResponse> {
 	const { username, functionName: funcName } = parseFunctionName(params.functionName);
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 
 	// Set timeout for function execution (configurable, default 20 seconds)
 	const timeoutMs = env?.FUNCTION_EXECUTION_TIMEOUT_MS || 20000;

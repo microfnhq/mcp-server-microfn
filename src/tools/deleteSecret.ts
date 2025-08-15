@@ -28,7 +28,7 @@ export async function handleDeleteSecret(
 ): Promise<DeleteSecretResponse> {
 	try {
 		const { username, functionName: funcName } = parseFunctionName(req.functionName);
-		const client = new MicroFnApiClient(token, env.API_BASE_URL);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 		await client.deleteSecret(username, funcName, req.secretId);
 		return {
 			success: true,

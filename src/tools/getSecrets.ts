@@ -27,7 +27,7 @@ export async function handleGetSecrets(
 ): Promise<GetSecretsResponse> {
 	try {
 		const { username, functionName: funcName } = parseFunctionName(req.functionName);
-		const client = new MicroFnApiClient(token, env.API_BASE_URL);
+		const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 		const secrets = await client.listSecrets(username, funcName);
 		return { success: true, secrets };
 	} catch (error: any) {

@@ -834,6 +834,9 @@ export async function createMcpServer(
 		let registered = 0;
 		for (const ws of workspaces) {
 			if (!ws.mcpToolEnabled) continue;
+
+			console.log(JSON.stringify(ws));
+
 			const toolName = `fn_${safe(ws.name)}`;
 			if (registeredDynamicTools.has(toolName)) continue;
 
@@ -841,38 +844,113 @@ export async function createMcpServer(
 				? `${ws.Account.username}/${ws.name}`
 				: ws.name;
 
-			server.tool(
-				toolName,
-				`Execute the ${ws.name} microfn function`,
-				{
-					input: z.string().describe("The input to pass to the microfn function"),
-				},
-				async () => {
-					try {
-						const result = await handleExecuteFunction(
-							apiToken,
-							{
-								functionName: functionIdentifier,
-								inputData: {},
-							},
-							env,
-							{} as ExecutionContext,
-						);
-						return {
-							content: [{ type: "text", text: JSON.stringify(result) }],
-						};
-					} catch (error: any) {
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Error: ${error.message}`,
-								},
-							],
-						};
+			// compose input schema based on deployed signature
+			const input = ws.latestDeployment?.signature?.parameterInfo?.reduce(
+				(acc, param) => {
+					// Parse complex types and create appropriate Zod schemas
+					let zodType: z.ZodTypeAny;
+
+					if (param.type.includes("|")) {
+						// Handle union types like "list" | "create" | "delete"
+						const unionValues = param.type
+							.match(/"([^"]+)"/g)
+							?.map((s) => s.slice(1, -1));
+						if (unionValues && unionValues.length > 0) {
+							zodType = z.enum(unionValues as [string, ...string[]]);
+						} else {
+							zodType = z.string();
+						}
+					} else if (param.type.includes("{") && param.type.includes("}")) {
+						// Handle object types - for now use passthrough object
+						zodType = z.object({}).passthrough();
+					} else {
+						// Use switch statement for better type handling
+						switch (param.type?.toLowerCase()) {
+							case "number":
+								zodType = z.number();
+								break;
+							case "boolean":
+								zodType = z.boolean();
+								break;
+							case "array":
+							case "any[]":
+								zodType = z.array(z.any());
+								break;
+							case "object":
+								zodType = z.object({}).passthrough();
+								break;
+							case "any":
+								zodType = z.any();
+								break;
+							default:
+								zodType = z.string();
+								break;
+						}
 					}
+
+					// Make optional if not required
+					if (!param.required) {
+						zodType = zodType.optional();
+					}
+
+					acc[param.name] = zodType.describe(
+						`Parameter: ${param.name} (type: ${param.type}, required: ${param.required})`,
+					);
+					return acc;
 				},
-			);
+				{} as Record<string, z.ZodTypeAny>,
+			) || {
+				input: z.string().describe("The input to pass to the microfn function"),
+			};
+
+			console.log(input);
+
+			// compose tool description based on deployed signature
+			let description = `Execute ${ws.name} on microfn`;
+			if (ws.latestDeployment?.signature?.comment) {
+				description += ` ${ws.latestDeployment.signature.comment}`;
+			}
+			if (
+				ws.latestDeployment?.signature?.parameterInfo &&
+				ws.latestDeployment.signature.parameterInfo.length > 0
+			) {
+				const paramInfo = ws.latestDeployment.signature.parameterInfo
+					.map(
+						(param) =>
+							`${param.name} (${param.type}${param.required ? ", required" : ", optional"})`,
+					)
+					.join(", ");
+				description += `. Parameters: ${paramInfo}`;
+			}
+
+			server.tool(toolName, description, input, async (input: any) => {
+				console.log("executing: ", toolName);
+				console.log("input:", input);
+
+				try {
+					const result = await handleExecuteFunction(
+						apiToken,
+						{
+							functionName: functionIdentifier,
+							inputData: {},
+						},
+						env,
+						{} as ExecutionContext,
+					);
+					return {
+						content: [{ type: "text", text: JSON.stringify(result) }],
+					};
+				} catch (error: any) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Error: ${error.message}`,
+							},
+						],
+					};
+				}
+			});
 
 			registeredDynamicTools.add(toolName);
 			registered++;
@@ -906,7 +984,7 @@ export async function createMcpServer(
 			}
 
 			// 2) Always fetch latest, update cache, update descriptions, and register any new tools
-			const client = new MicroFnApiClient(apiToken, env.API_BASE_URL);
+			const client = new MicroFnApiClient(apiToken, env.API_BASE_URL, env);
 			const latest = await client.listWorkspaces();
 			if (userCacheDO) {
 				await userCacheDO.setFunctions(latest);

@@ -22,7 +22,7 @@ export async function handleGenerateFunction(
 	env: any,
 	_ctx: ExecutionContext,
 ): Promise<GenerateFunctionResponse> {
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 	try {
 		const result = await client.generateFunction({ prompt: req.prompt });
 		return { variations: result.variations };

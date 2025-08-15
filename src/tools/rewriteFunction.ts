@@ -22,7 +22,7 @@ export async function handleRewriteFunction(
 	env: any,
 	_ctx: ExecutionContext,
 ): Promise<RewriteFunctionResponse> {
-	const client = new MicroFnApiClient(token, env.API_BASE_URL);
+	const client = new MicroFnApiClient(token, env.API_BASE_URL, env);
 	try {
 		const result = await client.rewriteFunction({ code: req.code });
 		return { code: result.code };
