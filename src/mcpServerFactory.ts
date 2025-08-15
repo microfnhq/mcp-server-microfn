@@ -845,63 +845,80 @@ export async function createMcpServer(
 				: ws.name;
 
 			// compose input schema based on deployed signature
-			const input = ws.latestDeployment?.signature?.parameterInfo?.reduce(
-				(acc, param) => {
-					// Parse complex types and create appropriate Zod schemas
-					let zodType: z.ZodTypeAny;
+			let inputSchema: Record<string, z.ZodTypeAny>;
 
-					if (param.type.includes("|")) {
-						// Handle union types like "list" | "create" | "delete"
-						const unionValues = param.type
-							.match(/"([^"]+)"/g)
-							?.map((s) => s.slice(1, -1));
-						if (unionValues && unionValues.length > 0) {
-							zodType = z.enum(unionValues as [string, ...string[]]);
-						} else {
-							zodType = z.string();
-						}
-					} else if (param.type.includes("{") && param.type.includes("}")) {
-						// Handle object types - for now use passthrough object
-						zodType = z.object({}).passthrough();
+			if (ws.latestDeployment?.signature?.parameterInfo?.length === 1) {
+				// Single parameter - create schema with "input" field
+				const param = ws.latestDeployment.signature.parameterInfo[0];
+				let zodType: z.ZodTypeAny;
+
+				// Check for object types first (before union detection)
+				if (param.type.startsWith("{") && param.type.endsWith("}")) {
+					// Handle object types - use passthrough object
+					// This includes complex types like { command: "list" | "create", key?: string }
+					zodType = z.object({}).passthrough();
+				} else if (param.type.includes("|")) {
+					// Handle union types like "list" | "create" | "delete" (only for non-objects)
+					const unionValues = param.type.match(/"([^"]+)"/g)?.map((s) => s.slice(1, -1));
+					if (unionValues && unionValues.length > 0) {
+						zodType = z.enum(unionValues as [string, ...string[]]);
 					} else {
-						// Use switch statement for better type handling
-						switch (param.type?.toLowerCase()) {
-							case "number":
-								zodType = z.number();
-								break;
-							case "boolean":
-								zodType = z.boolean();
-								break;
-							case "array":
-							case "any[]":
-								zodType = z.array(z.any());
-								break;
-							case "object":
-								zodType = z.object({}).passthrough();
-								break;
-							case "any":
-								zodType = z.any();
-								break;
-							default:
-								zodType = z.string();
-								break;
-						}
+						zodType = z.string();
 					}
-
-					// Make optional if not required
-					if (!param.required) {
-						zodType = zodType.optional();
+				} else {
+					// Use switch statement for better type handling
+					switch (param.type?.toLowerCase()) {
+						case "number":
+							zodType = z.number();
+							break;
+						case "boolean":
+							zodType = z.boolean();
+							break;
+						case "array":
+						case "any[]":
+							zodType = z.array(z.any());
+							break;
+						case "object":
+							zodType = z.object({}).passthrough();
+							break;
+						case "any":
+							zodType = z.any();
+							break;
+						default:
+							zodType = z.string();
+							break;
 					}
+				}
 
-					acc[param.name] = zodType.describe(
+				// Make optional if not required
+				if (!param.required) {
+					zodType = zodType.optional();
+				}
+
+				inputSchema = {
+					input: zodType.describe(
 						`Parameter: ${param.name} (type: ${param.type}, required: ${param.required})`,
-					);
-					return acc;
-				},
-				{} as Record<string, z.ZodTypeAny>,
-			) || {
-				input: z.string().describe("The input to pass to the microfn function"),
-			};
+					),
+				};
+			} else if (
+				ws.latestDeployment?.signature?.parameterInfo &&
+				ws.latestDeployment.signature.parameterInfo.length > 1
+			) {
+				// Multiple parameters - not supported yet, use any
+				console.warn(
+					`[mcpServerFactory] Function ${ws.name} has multiple parameters, using z.any()`,
+				);
+				inputSchema = {
+					input: z.any().describe("The input to pass to the microfn function"),
+				};
+			} else {
+				// No parameter info - default to any
+				inputSchema = {
+					input: z.any().describe("The input to pass to the microfn function"),
+				};
+			}
+
+			const input = inputSchema;
 
 			console.log(input);
 
@@ -923,7 +940,7 @@ export async function createMcpServer(
 				description += `. Parameters: ${paramInfo}`;
 			}
 
-			server.tool(toolName, description, input, async (input: any) => {
+			server.tool(toolName, description, input, async ({ input }: any) => {
 				console.log("executing: ", toolName);
 				console.log("input:", input);
 
