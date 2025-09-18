@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Hono } from "hono";
 import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
-import { authorize, callback, confirmConsent, tokenExchangeCallback } from "./auth/index.js";
+import { authorize, callback, tokenExchangeCallback } from "./auth/index.js";
 import { AuthenticatedMCP } from "./AuthenticatedMCP.js";
 import { UserDataCache } from "./UserDataCache.js";
 import { createStreamableHTTPHandler } from "./StreamableHTTPHandler.js";
@@ -14,14 +14,8 @@ export { AuthenticatedMCP, UserDataCache };
 // Environment interface
 export interface Env {
 	MICROFN_API_TOKEN?: string;
-	AUTH0_DOMAIN?: string;
-	AUTH0_CLIENT_ID?: string;
-	AUTH0_CLIENT_SECRET?: string;
-	AUTH0_REDIRECT_URI?: string;
-	AUTH0_REDIRECT_URI_DEV?: string;
-	AUTH0_AUDIENCE?: string;
-	AUTH0_SCOPE?: string;
-	COOKIE_SECRET?: string;
+	PHOENIX_API_URL?: string;
+	PHOENIX_CLIENT_SECRET?: string;
 	API_BASE_URL?: string;
 	NODE_ENV?: string;
 	OAUTH_KV?: KVNamespace;
@@ -50,7 +44,6 @@ app.options("*", (c) => {
 
 // OAuth routes
 app.get("/oauth/authorize", authorize);
-app.post("/oauth/authorize/consent", confirmConsent);
 app.get("/oauth/callback", callback);
 
 // Logout endpoint to clear session
@@ -125,11 +118,33 @@ app.get("/", (c) => {
 // We don't need to implement it ourselves
 
 // OAuth protected resource metadata endpoint for MCP clients
-app.get("/.well-known/oauth-protected-resource/:path", (c) => {
-	const path = c.req.param("path");
+app.get("/.well-known/oauth-protected-resource", (c) => {
+    // Use MCP_SERVER_URL from environment, fallback to request origin
+    const baseUrl = c.env.MCP_SERVER_URL || new URL(c.req.url).origin;
 
-	// Use MCP_SERVER_URL from environment, fallback to request origin
-	const baseUrl = c.env.MCP_SERVER_URL || new URL(c.req.url).origin;
+    // Add CORS headers for MCP Inspector
+    c.header("Access-Control-Allow-Origin", "*");
+    c.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    c.header(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, MCP-Protocol-Version",
+    );
+
+    return c.json({
+        authorization_server: baseUrl,
+        oauth_authorization_server: `${baseUrl}/.well-known/oauth-authorization-server`,
+        resources: {
+            mcp: `${baseUrl}/mcp`,
+            sse: `${baseUrl}/sse`,
+        },
+    });
+});
+
+app.get("/.well-known/oauth-protected-resource/:path", (c) => {
+    const path = c.req.param("path");
+
+    // Use MCP_SERVER_URL from environment, fallback to request origin
+    const baseUrl = c.env.MCP_SERVER_URL || new URL(c.req.url).origin;
 
 	console.log("[OAuth] Protected resource discovery for path:", path);
 	console.log("[OAuth] Using base URL:", baseUrl);
@@ -151,6 +166,12 @@ app.get("/.well-known/oauth-protected-resource/:path", (c) => {
 	});
 });
 
+// Provide a path-specific alias for the authorization server discovery to avoid 404s
+// Note: We rely on OAuthProvider to serve
+// /.well-known/oauth-authorization-server with full metadata.
+// We intentionally do NOT implement a path-specific variant here
+// to avoid diverging metadata between endpoints.
+
 // Create wrapped handlers for both endpoints
 const durableObjectHandler = AuthenticatedMCP.mount("/sse");
 const wrappedSseHandler = wrapDurableObjectMount(durableObjectHandler);
@@ -160,13 +181,13 @@ const wrappedMcpHandler = wrapDurableObjectMount(streamableHttpHandler);
 
 // Export a function that creates the OAuth provider with environment-specific URLs
 export default {
-	fetch: (request: Request, env: Env, ctx: ExecutionContext) => {
-		// Get the base URL from environment or use production default
-		const baseUrl = env.MCP_SERVER_URL || "https://mcp.microfn.dev";
+    fetch: (request: Request, env: Env, ctx: ExecutionContext) => {
+        // Get the base URL from environment or use production default
+        const baseUrl = env.MCP_SERVER_URL || "https://mcp.microfn.dev";
 
-		const url = new URL(request.url);
-		console.log("[OAuthProvider] Request path:", url.pathname);
-		console.log("[OAuthProvider] Using base URL:", baseUrl);
+        const url = new URL(request.url);
+        console.log("[OAuthProvider] Request path:", url.pathname);
+        console.log("[OAuthProvider] Using base URL:", baseUrl);
 
 		// Create the OAuth provider with paths (not full URLs)
 		// OAuthProvider will handle /oauth/token and /oauth/register automatically
@@ -182,7 +203,23 @@ export default {
 			tokenExchangeCallback,
 		});
 
-		// Pass the request to the provider
-		return provider.fetch(request, env, ctx);
-	},
+        // Pass the request to the provider, then enrich 401s with discovery hints
+        return provider.fetch(request, env, ctx).then(async (resp) => {
+            if (resp.status === 401) {
+                const pathname = url.pathname;
+                const headers = new Headers(resp.headers);
+
+                // Add WWW-Authenticate header with discovery metadata for MCP clients
+                const asUri = `${baseUrl}/.well-known/oauth-authorization-server`;
+                const resource = `${baseUrl}${pathname}`;
+                const challenge = `Bearer realm="MicroFn MCP Server", as_uri="${asUri}", resource="${resource}"`;
+                headers.set("WWW-Authenticate", challenge);
+
+                // Preserve body
+                const body = await resp.text();
+                return new Response(body, { status: resp.status, headers });
+            }
+            return resp;
+        });
+    },
 };

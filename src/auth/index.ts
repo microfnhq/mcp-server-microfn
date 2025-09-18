@@ -1,9 +1,5 @@
 import type { Context } from "hono";
-import { html, raw } from "hono/html";
-import * as oauth from "oauth4webapi";
-import { getCookie, setCookie } from "hono/cookie";
-
-import { env } from "cloudflare:workers";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import type {
 	AuthRequest,
 	OAuthHelpers,
@@ -14,32 +10,28 @@ import type {
 import type { UserProps } from "../types";
 import type { Env } from "../index";
 
-type Auth0AuthRequest = {
-	mcpAuthRequest: AuthRequest;
-	codeVerifier: string;
-	codeChallenge: string;
-	nonce: string;
-	transactionState: string;
-	consentToken: string;
-};
+/**
+ * Generate cryptographically secure random state
+ */
+function generateSecureState(): string {
+	const stateBytes = new Uint8Array(16); // 128 bits
+	crypto.getRandomValues(stateBytes);
+	return btoa(String.fromCharCode(...stateBytes))
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=/g, "");
+}
 
-export async function getOidcConfig({
-	issuer,
-	client_id,
-	client_secret,
-}: {
-	issuer: string;
-	client_id: string;
-	client_secret: string;
-}) {
-	const as = await oauth
-		.discoveryRequest(new URL(issuer), { algorithm: "oidc" })
-		.then((response) => oauth.processDiscoveryResponse(new URL(issuer), response));
-
-	const client: oauth.Client = { client_id };
-	const clientAuth = oauth.ClientSecretPost(client_secret);
-
-	return { as, client, clientAuth };
+/**
+ * Constant-time string comparison
+ */
+function constantTimeCompare(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let result = 0;
+	for (let i = 0; i < a.length; i++) {
+		result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	}
+	return result === 0;
 }
 
 /**
@@ -47,267 +39,232 @@ export async function getOidcConfig({
  *
  * This route initiates the Authorization Code Flow when a user wants to log in.
  * It creates a random state parameter to prevent CSRF attacks and stores the
- * original request information in a state-specific cookie for later retrieval.
- * Then it shows a consent screen before redirecting to Auth0.
+ * original request information in KV for later retrieval.
+ * Then it redirects to Phoenix for authentication.
  */
 export async function authorize(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>) {
-	const mcpClientAuthRequest = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
-	if (!mcpClientAuthRequest.clientId) {
+	const mcpAuthRequest = await c.env.OAUTH_PROVIDER.parseAuthRequest(c.req.raw);
+	if (!mcpAuthRequest.clientId) {
 		return c.text("Invalid request", 400);
 	}
 
-	const client = await c.env.OAUTH_PROVIDER.lookupClient(mcpClientAuthRequest.clientId);
+	const client = await c.env.OAUTH_PROVIDER.lookupClient(mcpAuthRequest.clientId);
 	if (!client) {
 		return c.text("Invalid client", 400);
 	}
 
-	// Generate all that is needed for the Auth0 auth request
-	const codeVerifier = oauth.generateRandomCodeVerifier();
-	const transactionState = oauth.generateRandomState();
-	const consentToken = oauth.generateRandomState(); // For CSRF protection on consent form
+	// Validate redirect URI
+	if (!isValidRedirectUri(client, mcpAuthRequest.redirectUri)) {
+		return c.text("Invalid redirect URI", 400);
+	}
 
-	// We will persist everything in a cookie.
-	const auth0AuthRequest: Auth0AuthRequest = {
-		mcpAuthRequest: mcpClientAuthRequest,
-		nonce: oauth.generateRandomNonce(),
-		codeVerifier,
-		codeChallenge: await oauth.calculatePKCECodeChallenge(codeVerifier),
-		consentToken,
-		transactionState,
-	};
+	// Generate state with proper entropy (128+ bits)
+	const state = generateSecureState();
 
-	// Store the auth request in a transaction-specific cookie
-	const cookieName = `auth0_req_${transactionState}`;
-	setCookie(c, cookieName, btoa(JSON.stringify(auth0AuthRequest)), {
-		path: "/",
-		httpOnly: true,
-		secure: c.env.NODE_ENV !== "development",
-		sameSite: c.env.NODE_ENV !== "development" ? "none" : "lax",
-		maxAge: 60 * 60 * 1, // 1 hour
-	});
+	// Store auth request in KV (not cookie) with 5 minute TTL
+	if (c.env.OAUTH_KV) {
+		const currentUrl = new URL(c.req.url);
+		const workerRedirectUri = `${currentUrl.origin}/oauth/callback`;
+		await c.env.OAUTH_KV.put(
+			`state:${state}`,
+			JSON.stringify({
+				request: mcpAuthRequest,
+				created: Date.now(),
+				client_id: mcpAuthRequest.clientId,
+				// Bind to the WORKER callback URI, not the client's
+				redirect_uri: workerRedirectUri,
+			}),
+			{ expirationTtl: 300 }, // 5 minutes
+		);
+	} else {
+		return c.text("OAuth KV namespace not configured", 500);
+	}
 
-	// Extract client information for the consent screen
-	const clientName = client.clientName || client.clientId;
-	const clientLogo = client.logoUri || ""; // No default logo
-	const clientUri = client.clientUri || "#";
-	const requestedScopes = (c.env.AUTH0_SCOPE || "openid email profile offline_access").split(" ");
+    // Set minimal state cookie (HttpOnly). Use Secure only over HTTPS in dev.
+    const reqUrl = new URL(c.req.url);
+    const isSecure = reqUrl.protocol === "https:";
+    setCookie(c, "mcp_state", state, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "Lax",
+        maxAge: 300, // 5 minutes
+        path: "/oauth",
+    });
 
-	// Render the consent screen with CSRF protection
-	return c.html(
-		renderConsentScreen({
-			clientName,
-			clientLogo,
-			clientUri,
-			redirectUri: mcpClientAuthRequest.redirectUri,
-			requestedScopes,
-			transactionState,
-			consentToken,
-		}),
-	);
+	// Redirect to Phoenix login
+	const phoenixLoginUrl = new URL(`${c.env.PHOENIX_API_URL}/auth/mcp/login`);
+	phoenixLoginUrl.searchParams.set("state", state);
+	phoenixLoginUrl.searchParams.set("client_id", mcpAuthRequest.clientId);
+	const currentUrl = new URL(c.req.url);
+	phoenixLoginUrl.searchParams.set("redirect_uri", `${currentUrl.origin}/oauth/callback`);
+	if (mcpAuthRequest.scope && mcpAuthRequest.scope.length > 0) {
+		phoenixLoginUrl.searchParams.set("scope", mcpAuthRequest.scope.join(" "));
+	}
+
+	return c.redirect(phoenixLoginUrl.href);
 }
 
 /**
- * Consent Confirmation Endpoint
- *
- * This route handles the consent confirmation before redirecting to Auth0
+ * Validate redirect URI against client configuration
  */
-export async function confirmConsent(
-	c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>,
-) {
-	// Get form data
-	const formData = await c.req.formData();
-	const transactionState = formData.get("transaction_state") as string;
-	const consentToken = formData.get("consent_token") as string;
-	const consentAction = formData.get("consent_action") as string;
-
-	// Validate the transaction state
-	if (!transactionState) {
-		return c.text("Invalid transaction state", 400);
-	}
-
-	// Get the transaction-specific cookie
-	const cookieName = `auth0_req_${transactionState}`;
-	const auth0AuthRequestCookie = getCookie(c, cookieName);
-	if (!auth0AuthRequestCookie) {
-		return c.text("Invalid or expired transaction", 400);
-	}
-
-	// Parse the Auth0 auth request from the cookie
-	const auth0AuthRequest = JSON.parse(atob(auth0AuthRequestCookie)) as Auth0AuthRequest;
-
-	// Validate the CSRF token
-	if (auth0AuthRequest.consentToken !== consentToken) {
-		return c.text("Invalid consent token", 403);
-	}
-
-	// Handle user denial
-	if (consentAction !== "approve") {
-		// Parse the MCP client auth request to get the original redirect URI
-		const redirectUri = new URL(auth0AuthRequest.mcpAuthRequest.redirectUri);
-
-		// Add error parameters to the redirect URI
-		redirectUri.searchParams.set("error", "access_denied");
-		redirectUri.searchParams.set("error_description", "User denied the request");
-		if (auth0AuthRequest.mcpAuthRequest.state) {
-			redirectUri.searchParams.set("state", auth0AuthRequest.mcpAuthRequest.state);
-		}
-
-		// Clear the transaction cookie
-		setCookie(c, cookieName, "", {
-			path: "/",
-			maxAge: 0,
-		});
-
-		return c.redirect(redirectUri.toString());
-	}
-
-	const { as } = await getOidcConfig({
-		issuer: `https://${c.env.AUTH0_DOMAIN}/`,
-		client_id: c.env.AUTH0_CLIENT_ID!,
-		client_secret: c.env.AUTH0_CLIENT_SECRET!,
-	});
-
-	// Redirect to Auth0's authorization endpoint
-	const authorizationUrl = new URL(as.authorization_endpoint!);
-	authorizationUrl.searchParams.set("client_id", c.env.AUTH0_CLIENT_ID!);
-	authorizationUrl.searchParams.set("redirect_uri", new URL("/oauth/callback", c.req.url).href);
-	authorizationUrl.searchParams.set("response_type", "code");
-	// Don't set audience since MicroFn doesn't use API-specific tokens
-	authorizationUrl.searchParams.set(
-		"scope",
-		c.env.AUTH0_SCOPE || "openid email profile offline_access",
-	);
-	authorizationUrl.searchParams.set("code_challenge", auth0AuthRequest.codeChallenge);
-	authorizationUrl.searchParams.set("code_challenge_method", "S256");
-	authorizationUrl.searchParams.set("nonce", auth0AuthRequest.nonce);
-	authorizationUrl.searchParams.set("state", transactionState);
-	return c.redirect(authorizationUrl.href);
+function isValidRedirectUri(client: any, redirectUri: string): boolean {
+	// In production, this should check against registered redirect URIs
+	// For now, basic validation
+	return redirectUri.startsWith("http://localhost:") || redirectUri.startsWith("https://");
 }
 
 /**
  * OAuth Callback Endpoint
  *
- * This route handles the callback from Auth0 after user authentication.
- * It exchanges the authorization code for tokens and completes the
- * authorization process.
+ * This route handles the callback from Phoenix after user authentication.
+ * It verifies the authorization code and completes the authorization process.
  */
 export async function callback(c: Context<{ Bindings: Env & { OAUTH_PROVIDER: OAuthHelpers } }>) {
-	// Parse the state parameter to extract transaction state and Auth0 state
-	const stateParam = c.req.query("state") as string;
-	if (!stateParam) {
-		return c.text("Invalid state parameter", 400);
+	const code = c.req.query("code");
+	const state = c.req.query("state");
+
+	// Validate state from cookie
+	const cookieState = getCookie(c, "mcp_state");
+	if (!state || !cookieState || !constantTimeCompare(state, cookieState)) {
+		return c.text("Invalid state", 400);
 	}
 
-	// Parse the Auth0 auth request from the transaction-specific cookie
-	const cookieName = `auth0_req_${stateParam}`;
-	const auth0AuthRequestCookie = getCookie(c, cookieName);
-	if (!auth0AuthRequestCookie) {
-		return c.text("Invalid transaction state or session expired", 400);
+	// Retrieve stored auth request from KV
+	if (!c.env.OAUTH_KV) {
+		return c.text("OAuth KV namespace not configured", 500);
+	}
+	const stateData = await c.env.OAUTH_KV.get(`state:${state}`);
+	if (!stateData) {
+		return c.text("State expired or invalid", 400);
 	}
 
-	const auth0AuthRequest = JSON.parse(atob(auth0AuthRequestCookie)) as Auth0AuthRequest;
+	const { request: mcpAuthRequest, client_id, redirect_uri } = JSON.parse(stateData);
 
-	// Clear the transaction cookie as it's no longer needed
-	setCookie(c, cookieName, "", {
-		path: "/",
-		maxAge: 0,
-	});
+	// Delete state from KV (single use)
+	if (c.env.OAUTH_KV) {
+		await c.env.OAUTH_KV.delete(`state:${state}`);
+	}
 
-	const { as, client, clientAuth } = await getOidcConfig({
-		issuer: `https://${c.env.AUTH0_DOMAIN}/`,
-		client_id: c.env.AUTH0_CLIENT_ID!,
-		client_secret: c.env.AUTH0_CLIENT_SECRET!,
-	});
+	// Prepare verification request with HMAC
+	const timestamp = Math.floor(Date.now() / 1000);
+	const body = {
+		code,
+		client_id,
+		redirect_uri,
+		state,
+	};
 
-	// Perform the Code Exchange
-	const params = oauth.validateAuthResponse(
-		as,
-		client,
-		new URL(c.req.url),
-		auth0AuthRequest.transactionState,
+	// Calculate HMAC signature using canonical JSON to avoid key order differences
+	const message = `${timestamp}.${canonicalJSONStringify(body)}`;
+	const encoder = new TextEncoder();
+	const key = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(c.env.PHOENIX_CLIENT_SECRET),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
 	);
-	const response = await oauth.authorizationCodeGrantRequest(
-		as,
-		client,
-		clientAuth,
-		params,
-		new URL("/oauth/callback", c.req.url).href,
-		auth0AuthRequest.codeVerifier,
-	);
+	const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
+	const hmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
 
-	// Process the response
-	const result = await oauth.processAuthorizationCodeResponse(as, client, response, {
-		expectedNonce: auth0AuthRequest.nonce,
-		requireIdToken: true,
-	});
-
-	console.log("[OAuth][callback] Auth0 token response:", {
-		hasIdToken: !!result.id_token,
-		hasAccessToken: !!result.access_token,
-		hasRefreshToken: !!result.refresh_token,
-		expiresIn: result.expires_in,
-		tokenType: result.token_type,
-		scope: result.scope,
-	});
-
-	// Get the claims from the id_token
-	const claims = oauth.getValidatedIdTokenClaims(result);
-	if (!claims) {
-		return c.text("Received invalid id_token from Auth0", 400);
-	}
-
-	console.log("[OAuth][callback] ID token claims:", {
-		sub: claims.sub,
-		email: claims.email,
-		name: claims.name,
-		iat: claims.iat,
-		exp: claims.exp,
-	});
-
-	// No longer exchanging for MicroFn PAT - using Auth0 token directly
-	console.log("[OAuth] Using Auth0 access token directly for MicroFn API");
-
-	// Complete the authorization
-	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
-		request: auth0AuthRequest.mcpAuthRequest,
-		userId: claims.sub!,
-		metadata: {
-			label: claims.name || claims.email || claims.sub,
+	// Verify code with Phoenix
+	const verifyResponse = await fetch(`${c.env.PHOENIX_API_URL}/api/auth/verify`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${hmac}`,
+			"X-Request-Timestamp": timestamp.toString(),
+			"X-Client-Id": client_id,
 		},
-		scope: auth0AuthRequest.mcpAuthRequest.scope,
+		body: JSON.stringify(body),
+	});
+
+	if (!verifyResponse.ok) {
+		// Log verification failure
+		console.error("Verification failed:", await verifyResponse.text());
+		return c.text("Authentication failed", 401);
+	}
+
+	const userInfo = (await verifyResponse.json()) as any;
+
+	// Generate tokens based on user info
+	const idToken = await generateIdToken(userInfo, c.env);
+	const accessToken = await generateAccessToken(userInfo, c.env);
+
+	// Complete OAuth flow
+	const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
+		request: mcpAuthRequest,
+		userId: userInfo.sub,
+		scope: mcpAuthRequest.scope || [],
+		metadata: {
+			label: userInfo.email,
+			amr: userInfo.amr, // Preserve auth method
+		},
 		props: {
-			claims: claims,
+			claims: userInfo,
 			tokenSet: {
-				idToken: result.id_token,
-				accessToken: result.access_token,
-				accessTokenTTL: result.expires_in, // Store in seconds
-				refreshToken: result.refresh_token,
+				idToken: idToken,
+				accessToken: accessToken,
+				accessTokenTTL: 3600, // 1 hour
 			},
-			// microfnToken removed - using Auth0 access token directly
 		} as UserProps,
 	});
 
-	console.log("[OAuth][callback] Authorization completed:", {
-		redirectTo,
-		tokenSetTTL: result.expires_in || 3600,
-		tokenSetTTLInMs: (result.expires_in || 3600) * 1000,
-		usingAuth0Token: true,
-		tokenExpiresAt: new Date(Date.now() + (result.expires_in || 3600) * 1000).toISOString(),
-	});
+	// Clear state cookie
+	deleteCookie(c, "mcp_state", { path: "/oauth" });
 
 	return Response.redirect(redirectTo);
+}
+
+// Deterministic JSON stringifier with sorted keys (recursively)
+function canonicalJSONStringify(value: any): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((v) => canonicalJSONStringify(v)).join(",")}]`;
+  }
+  const keys = Object.keys(value).sort();
+  const parts = keys.map((k) => `${JSON.stringify(k)}:${canonicalJSONStringify(value[k])}`);
+  return "{" + parts.join(",") + "}";
+}
+
+/**
+ * Generate ID token for the user
+ */
+async function generateIdToken(userInfo: any, env: Env): Promise<string> {
+	// For now, return a simple base64 encoded JSON
+	// In production, this should be a properly signed JWT
+	return btoa(
+		JSON.stringify({
+			sub: userInfo.sub,
+			email: userInfo.email,
+			email_verified: userInfo.email_verified,
+			iat: userInfo.iat,
+			exp: userInfo.exp,
+		}),
+	);
+}
+
+/**
+ * Generate access token for the user
+ */
+async function generateAccessToken(userInfo: any, env: Env): Promise<string> {
+	// For now, return a simple token
+	// In production, this should integrate with your token service
+	return `mcp_${userInfo.sub}_${Date.now()}`;
 }
 
 /**
  * Token Exchange Callback
  *
- * This function handles the token exchange callback for the CloudflareOAuth Provider and allows us to then interact with the Upstream IdP (your Auth0 tenant)
+ * This function handles the token exchange callback for the CloudflareOAuth Provider
  */
 export async function tokenExchangeCallback(
 	options: TokenExchangeCallbackOptions,
 ): Promise<TokenExchangeCallbackResult | void> {
 	// During the Authorization Code Exchange, we want to make sure that the Access Token issued
-	// by the MCP Server has the same TTL as the one issued by Auth0.
+	// by the MCP Server has the same TTL as configured
 	if (options.grantType === "authorization_code") {
 		const ttlInSeconds = options.props.tokenSet.accessTokenTTL;
 		const ttlInMs = (ttlInSeconds || 3600) * 1000; // Convert to milliseconds
@@ -316,7 +273,6 @@ export async function tokenExchangeCallback(
 			grantType: options.grantType,
 			originalTTL: ttlInSeconds,
 			convertedTTLMs: ttlInMs,
-			hasAuth0Token: !!options.props.tokenSet?.accessToken,
 			userSub: options.props.claims?.sub,
 		});
 
@@ -328,348 +284,13 @@ export async function tokenExchangeCallback(
 		};
 	}
 
+	// Refresh token support can be added later if needed
 	if (options.grantType === "refresh_token") {
-		console.log("[OAuth][tokenExchange] Refresh token grant started:", {
-			grantType: options.grantType,
-			hasRefreshToken: !!options.props.tokenSet.refreshToken,
-			hasAuth0Token: !!options.props.tokenSet?.accessToken,
-			userSub: options.props.claims?.sub,
-		});
-
-		const auth0RefreshToken = options.props.tokenSet.refreshToken;
-		if (!auth0RefreshToken) {
-			throw new Error("No Auth0 refresh token found");
-		}
-
-		const { as, client, clientAuth } = await getOidcConfig({
-			issuer: `https://${(env as any).AUTH0_DOMAIN}/`,
-			client_id: (env as any).AUTH0_CLIENT_ID!,
-			client_secret: (env as any).AUTH0_CLIENT_SECRET!,
-		});
-
-		// Perform the refresh token exchange with Auth0.
-		const response = await oauth.refreshTokenGrantRequest(
-			as,
-			client,
-			clientAuth,
-			auth0RefreshToken,
-		);
-		const refreshTokenResponse = await oauth.processRefreshTokenResponse(as, client, response);
-
-		console.log("[OAuth][tokenExchange] Auth0 refresh response:", {
-			hasIdToken: !!refreshTokenResponse.id_token,
-			hasAccessToken: !!refreshTokenResponse.access_token,
-			hasRefreshToken: !!refreshTokenResponse.refresh_token,
-			expiresIn: refreshTokenResponse.expires_in,
-			tokenType: refreshTokenResponse.token_type,
-			scope: refreshTokenResponse.scope,
-		});
-
-		// Get the claims from the id_token
-		const claims = oauth.getValidatedIdTokenClaims(refreshTokenResponse);
-		if (!claims) {
-			throw new Error("Received invalid id_token from Auth0");
-		}
-
-		console.log("[OAuth][tokenExchange] Refreshed token claims:", {
-			sub: claims.sub,
-			email: claims.email,
-			name: claims.name,
-		});
-
-		// No longer exchanging for MicroFn PAT - using Auth0 token directly
-		console.log("[OAuth] Using refreshed Auth0 access token directly for MicroFn API");
-
-		// Store the new token set and claims.
-		const ttlInSeconds = refreshTokenResponse.expires_in;
-		const ttlInMs = (ttlInSeconds || 3600) * 1000; // Convert to milliseconds
-
-		console.log("[OAuth][tokenExchange] Refresh complete:", {
-			originalTTL: ttlInSeconds,
-			convertedTTLMs: ttlInMs,
-			usingAuth0Token: true,
-			tokenExpiresAt: new Date(Date.now() + ttlInMs).toISOString(),
-		});
-
+		console.log("[OAuth][tokenExchange] Refresh token grant not implemented for Phoenix");
+		// For now, just extend the current token
 		return {
-			newProps: {
-				...options.props,
-				claims: claims,
-				tokenSet: {
-					idToken: refreshTokenResponse.id_token,
-					accessToken: refreshTokenResponse.access_token,
-					accessTokenTTL: ttlInSeconds, // Keep in seconds in tokenSet
-					refreshToken: refreshTokenResponse.refresh_token || auth0RefreshToken,
-				},
-				// microfnToken removed - using Auth0 access token directly
-			},
-			accessTokenTTL: ttlInMs, // Use milliseconds for OAuth provider
+			newProps: options.props,
+			accessTokenTTL: 3600 * 1000, // 1 hour in milliseconds
 		};
 	}
-}
-
-/**
- * Renders the consent screen HTML
- */
-function renderConsentScreen({
-	clientName,
-	clientLogo,
-	clientUri,
-	redirectUri,
-	requestedScopes,
-	transactionState,
-	consentToken,
-}: {
-	clientName: string;
-	clientLogo: string;
-	clientUri: string;
-	redirectUri: string;
-	requestedScopes: string[];
-	transactionState: string;
-	consentToken: string;
-}) {
-	return html`
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta charset="UTF-8" />
-                <meta
-                    name="viewport"
-                    content="width=device-width, initial-scale=1.0"
-                />
-                <title>Authorization Request</title>
-                <style>
-                    :root {
-                        --primary-color: #4361ee;
-                        --text-color: #333;
-                        --background-color: #f7f7f7;
-                        --card-background: #ffffff;
-                        --border-color: #e0e0e0;
-                        --danger-color: #ef233c;
-                        --success-color: #2a9d8f;
-                        --font-family:
-                            -apple-system, BlinkMacSystemFont, "Segoe UI",
-                            Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
-                            "Helvetica Neue", sans-serif;
-                    }
-
-                    body {
-                        font-family: var(--font-family);
-                        background-color: var(--background-color);
-                        color: var(--text-color);
-                        margin: 0;
-                        padding: 0;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                    }
-
-                    .container {
-                        width: 100%;
-                        max-width: 480px;
-                        padding: 20px;
-                    }
-
-                    .card {
-                        background-color: var(--card-background);
-                        border-radius: 12px;
-                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                        padding: 32px;
-                        overflow: hidden;
-                    }
-
-                    .header {
-                        text-align: center;
-                        margin-bottom: 24px;
-                    }
-
-                    .app-logo {
-                        width: 80px;
-                        height: 80px;
-                        object-fit: contain;
-                        border-radius: 8px;
-                        margin-bottom: 16px;
-                    }
-
-                    h1 {
-                        font-size: 20px;
-                        margin: 0 0 8px 0;
-                    }
-
-                    .app-link {
-                        color: var(--primary-color);
-                        text-decoration: none;
-                        font-size: 14px;
-                    }
-
-                    .app-link:hover {
-                        text-decoration: underline;
-                    }
-
-                    .description {
-                        margin: 24px 0;
-                        font-size: 16px;
-                        line-height: 1.5;
-                    }
-
-                    .scopes {
-                        background-color: var(--background-color);
-                        border-radius: 8px;
-                        padding: 16px;
-                        margin: 24px 0;
-                    }
-
-                    .scope-title {
-                        font-weight: 600;
-                        margin-bottom: 8px;
-                        font-size: 15px;
-                    }
-
-                    .scope-list {
-                        font-size: 14px;
-                        margin: 0;
-                        padding-left: 20px;
-                    }
-
-                    .actions {
-                        display: flex;
-                        gap: 12px;
-                        margin-top: 24px;
-                    }
-
-                    .btn {
-                        flex: 1;
-                        padding: 12px 20px;
-                        font-size: 16px;
-                        font-weight: 500;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        border: none;
-                        transition: all 0.2s ease;
-                    }
-
-                    .btn-cancel {
-                        background-color: transparent;
-                        border: 1px solid var(--border-color);
-                        color: var(--text-color);
-                    }
-
-                    .btn-cancel:hover {
-                        background-color: rgba(0, 0, 0, 0.05);
-                    }
-
-                    .btn-approve {
-                        background-color: var(--primary-color);
-                        color: white;
-                    }
-
-                    .btn-approve:hover {
-                        background-color: #3250d2;
-                    }
-
-                    .security-note {
-                        margin-top: 24px;
-                        font-size: 12px;
-                        color: #777;
-                        text-align: center;
-                    }
-
-                    @media (max-width: 520px) {
-                        .container {
-                            padding: 10px;
-                        }
-
-                        .card {
-                            padding: 24px;
-                            border-radius: 8px;
-                        }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="card">
-                        <div class="header">
-                            ${
-								clientLogo?.length
-									? `<img src="${clientLogo}" alt="${clientName} logo" class="app-logo" />`
-									: ""
-							}
-                            <h1>MicroFn MCP Server - Authorization Request</h1>
-                            <a
-                                href="${clientUri}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="app-link"
-                                >${clientName}</a
-                            >
-                        </div>
-
-                        <p class="description">
-                            <strong>${clientName}</strong> is requesting
-                            permission to access the
-                            <strong>MicroFn API</strong> using your account.
-                            Please review the permissions before proceeding.
-                        </p>
-
-                        <p class="description">
-                            By clicking "Allow Access", you authorize
-                            <strong>${clientName}</strong> to access the
-                            following resources:
-                        </p>
-
-                        <ul class="scope-list">
-                            ${raw(requestedScopes.map((scope) => `<li>${scope}</li>`).join("\n"))}
-                        </ul>
-
-                        <p class="description">
-                            If you did not initiate the request coming from
-                            <strong>${clientName}</strong>
-                            (<i>${redirectUri}</i>) or you do not trust this
-                            application, you should deny access.
-                        </p>
-
-                        <form method="POST" action="/oauth/authorize/consent">
-                            <input
-                                type="hidden"
-                                name="transaction_state"
-                                value="${transactionState}"
-                            />
-                            <input
-                                type="hidden"
-                                name="consent_token"
-                                value="${consentToken}"
-                            />
-
-                            <div class="actions">
-                                <button
-                                    type="submit"
-                                    name="consent_action"
-                                    value="deny"
-                                    class="btn btn-cancel"
-                                >
-                                    Deny
-                                </button>
-                                <button
-                                    type="submit"
-                                    name="consent_action"
-                                    value="approve"
-                                    class="btn btn-approve"
-                                >
-                                    Allow Access
-                                </button>
-                            </div>
-                        </form>
-
-                        <p class="security-note">
-                            You're signing in to a third-party application. Your
-                            account information is never shared without your
-                            permission.
-                        </p>
-                    </div>
-                </div>
-            </body>
-        </html>
-    `;
 }

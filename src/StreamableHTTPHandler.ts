@@ -313,11 +313,13 @@ export class StreamableHTTPHandler {
 				method: request.method,
 			});
 
-			const apiToken = this.userProps.tokenSet?.idToken;
+			// Use access token for authentication
+			const apiToken =
+				this.userProps.tokenSet?.accessToken || this.userProps.tokenSet?.idToken;
 
 			if (!apiToken) {
 				console.error(
-					"[StreamableHTTP] No Auth0 ID token available for user:",
+					"[StreamableHTTP] No authentication token available for user:",
 					this.userProps.claims?.email,
 				);
 				console.error("[StreamableHTTP] UserProps:", {
@@ -329,7 +331,7 @@ export class StreamableHTTPHandler {
 						jsonrpc: "2.0",
 						error: {
 							code: 401,
-							message: "No Auth0 ID token available. Please re-authenticate.",
+							message: "No authentication token available. Please re-authenticate.",
 						},
 						id: null,
 					}),

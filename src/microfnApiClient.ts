@@ -111,7 +111,11 @@ export class MicroFnApiClient {
 			baseUrl: this.baseUrl,
 			runBaseUrl: this.runBaseUrl,
 			hasToken: !!apiToken,
-			tokenType: apiToken.startsWith("mfn_") ? "PAT" : "Auth0 ID Token",
+			tokenType: apiToken.startsWith("mfn_")
+				? "PAT"
+				: apiToken.startsWith("mcp_")
+					? "MCP Token"
+					: "ID Token",
 		});
 	}
 
@@ -160,23 +164,30 @@ export class MicroFnApiClient {
 			return;
 		}
 
-		// Validate Auth0 ID token
-		try {
-			const tokenPayload = decodeJwt(this.apiToken);
-			const currentTime = Math.floor(Date.now() / 1000);
-			const tokenExp = tokenPayload.exp as number;
+		// Skip validation for MCP tokens (they're simple identifiers)
+		if (this.apiToken.startsWith("mcp_")) {
+			return;
+		}
 
-			if (currentTime >= tokenExp) {
-				const expiredAt = new Date(tokenExp * 1000).toISOString();
-				console.error("[MicroFnApiClient] Auth0 ID token expired at:", expiredAt);
-				throw new Error(`Auth0 ID token expired at ${expiredAt}. Please re-authenticate.`);
+		// Validate JWT tokens (ID tokens)
+		if (this.apiToken.includes(".")) {
+			try {
+				const tokenPayload = decodeJwt(this.apiToken);
+				const currentTime = Math.floor(Date.now() / 1000);
+				const tokenExp = tokenPayload.exp as number;
+
+				if (currentTime >= tokenExp) {
+					const expiredAt = new Date(tokenExp * 1000).toISOString();
+					console.error("[MicroFnApiClient] ID token expired at:", expiredAt);
+					throw new Error(`ID token expired at ${expiredAt}. Please re-authenticate.`);
+				}
+			} catch (error) {
+				if (error instanceof Error && error.message.includes("expired")) {
+					throw error;
+				}
+				console.error("[MicroFnApiClient] Failed to validate token:", error);
+				throw new Error("Invalid ID token");
 			}
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("expired")) {
-				throw error;
-			}
-			console.error("[MicroFnApiClient] Failed to validate token:", error);
-			throw new Error("Invalid Auth0 ID token");
 		}
 	}
 
